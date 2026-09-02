@@ -12,8 +12,8 @@ android {
         applicationId = "de.bascurt.almancaokuyucu"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "0.4.1.4"
+        versionCode = 12
+        versionName = "0.4.1.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "CONTENT_BASE_URL", "\"https://raw.githubusercontent.com/mbkurt06/german-reader/main/content/\"")
     }
@@ -23,6 +23,7 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+        freeCompilerArgs += "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api"
     }
     buildFeatures { compose = true; buildConfig = true }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
