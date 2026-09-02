@@ -18,5 +18,5 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
-      - name: Run vocabulary regression tests
-        run: gradle testDebugUnitTest --tests 'de.bascurt.almancaokuyucu.data.LessonVocabularyAuditTest' --info
+      - name: Run vocabulary and story-content regression tests
+        run: gradle testDebugUnitTest --tests 'de.bascurt.almancaokuyucu.data.LessonVocabularyAuditTest' --tests 'de.bascurt.almancaokuyucu.data.ExtendedLessonContentTest' --info
