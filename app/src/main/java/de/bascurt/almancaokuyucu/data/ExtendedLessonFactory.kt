@@ -7,9 +7,7 @@ import de.bascurt.almancaokuyucu.model.ReadingToken
 internal object ExtendedLessonFactory {
     fun lesson(id: String, title: String, level: String, summary: String, texts: List<String>): ReaderLesson {
         val expandedTexts = texts + reinforcementSentences(summary)
-        return ReaderLesson(id, title, level, summary, expandedTexts.mapIndexed { si, sentence ->
-            tokenizeSentence(id, si, sentence)
-        })
+        return ReaderLesson(id, title, level, summary, expandedTexts.mapIndexed { si, sentence -> tokenizeSentence(id, si, sentence) })
     }
 
     fun appendSentences(lesson: ReaderLesson, texts: List<String>): ReaderLesson {
@@ -24,19 +22,18 @@ internal object ExtendedLessonFactory {
         val keys = shownTokens.map(::clean)
         val lexemes = keys.mapIndexed { ti, key -> lexemeFor(lessonId, sentenceIndex, ti, key) }.toMutableList()
 
-        // Ayrılabilen fiiller: çekimli fiil ve ayrılan ön ek aynı Lexeme kimliğini paylaşır.
         keys.forEachIndexed { verbIndex, key ->
             val particle = separableParticles[key] ?: return@forEachIndexed
+            val seed = extendedVerbLexicon[key] ?: return@forEachIndexed
+            if (!supportsParticle(seed.base, particle)) return@forEachIndexed
             val particleIndex = keys.indexOfLast { it == particle }
             if (particleIndex > verbIndex) {
-                val seed = extendedVerbLexicon[key] ?: return@forEachIndexed
                 val grouped = verbLexeme(lessonId, key, seed, "Ayrılabilen fiil: cümlede ‘${shownTokens[verbIndex]} … ${shownTokens[particleIndex]}’ birlikte tek yapı olarak öğrenilir.")
                 lexemes[verbIndex] = grouped
                 lexemes[particleIndex] = grouped
             }
         }
 
-        // Dönüşlü fiiller: sich ile fiil aynı Lexeme altında vurgulanır.
         keys.forEachIndexed { verbIndex, key ->
             val seed = extendedVerbLexicon[key] ?: return@forEachIndexed
             if (!seed.base.startsWith("sich ")) return@forEachIndexed
@@ -51,19 +48,17 @@ internal object ExtendedLessonFactory {
         return shownTokens.mapIndexed { index, shown -> ReadingToken(shown, lexemes[index]) }
     }
 
+    private fun supportsParticle(base: String, particle: String): Boolean =
+        base.split("/").map { it.trim().removePrefix("sich ") }.any { it.startsWith(particle) }
+
     private fun lexemeFor(lessonId: String, sentenceIndex: Int, tokenIndex: Int, key: String): Lexeme {
         extendedVerbLexicon[key]?.let { return verbLexeme(lessonId, key, it) }
         extendedNounLexicon[key]?.let { n ->
             return Lexeme(
-                id = "$lessonId-n-$key",
-                base = n.base,
+                id = "$lessonId-n-$key", base = n.base,
                 meaning = n.meaning.ifBlank { "Türkçe anlam henüz tanımlanmadı" },
-                type = "Kelime",
-                explanation = "Bu isim hikâyenin temasındaki önemli günlük kelimelerden biridir.",
-                quizEligible = true,
-                wordClass = "İsim",
-                article = n.article,
-                plural = n.plural
+                type = "Kelime", explanation = "Bu isim hikâyenin temasındaki önemli günlük kelimelerden biridir.",
+                quizEligible = true, wordClass = "İsim", article = n.article, plural = n.plural
             )
         }
         commonMeanings[key]?.let { c ->
@@ -73,29 +68,19 @@ internal object ExtendedLessonFactory {
             return Lexeme(id = "$lessonId-f-$key", base = key, meaning = meaning, type = "Kelime", quizEligible = false, wordClass = "Diğer")
         }
         return Lexeme(
-            id = "$lessonId-x-$sentenceIndex-$tokenIndex",
-            base = key,
+            id = "$lessonId-x-$sentenceIndex-$tokenIndex", base = key,
             meaning = "Türkçe anlam henüz tanımlanmadı",
             explanation = "Bu kelimenin bağlama özel Türkçe karşılığı içerik sözlüğüne henüz eklenmedi.",
-            type = "Diğer",
-            quizEligible = false,
-            wordClass = "Diğer"
+            type = "Diğer", quizEligible = false, wordClass = "Diğer"
         )
     }
 
     private fun verbLexeme(lessonId: String, key: String, v: ExtendedVerbSeed, note: String = "Bu fiil bu günlük yaşam temasında sık kullanılan temel bir eylemdir.") =
         Lexeme(
-            id = "$lessonId-v-${v.base}",
-            base = v.base,
+            id = "$lessonId-v-${v.base}", base = v.base,
             meaning = v.meaning.ifBlank { "Türkçe anlam henüz tanımlanmadı" },
-            type = "Kelime grubu",
-            explanation = note,
-            quizEligible = true,
-            wordClass = "Fiil",
-            infinitive = v.base,
-            thirdPerson = v.third,
-            preterite = v.preterite,
-            perfect = v.perfect
+            type = "Kelime grubu", explanation = note, quizEligible = true, wordClass = "Fiil",
+            infinitive = v.base, thirdPerson = v.third, preterite = v.preterite, perfect = v.perfect
         )
 
     private fun reinforcementSentences(summary: String): List<String> {
@@ -142,40 +127,24 @@ internal object ExtendedLessonFactory {
     private fun clean(text: String): String = text.trim('"', '„', '“', '.', ',', ':', ';', '!', '?', '(', ')').lowercase()
 
     private val separableParticles = mapOf(
-        "hängt" to "auf",
-        "räumt" to "aus",
-        "holt" to "ab",
-        "meldet" to "an",
-        "steigt" to "ein",
-        "ordnet" to "an",
-        "packt" to "ein",
-        "baut" to "zusammen",
-        "zieht" to "an",
-        "trocknet" to "ab",
-        "nimmt" to "mit",
-        "stellt" to "vor",
-        "macht" to "auf",
-        "schaltet" to "ein",
-        "ruft" to "an",
-        "gibt" to "ab",
-        "kommt" to "zurück",
-        "fährt" to "los"
+        "hängt" to "auf", "räumt" to "aus", "holt" to "ab", "meldet" to "an", "steigt" to "ein",
+        "ordnet" to "an", "packt" to "ein", "baut" to "zusammen", "zieht" to "an", "trocknet" to "ab",
+        "nimmt" to "mit", "stellt" to "vor", "macht" to "auf", "schaltet" to "ein", "ruft" to "an",
+        "gibt" to "ab", "kommt" to "zurück", "fährt" to "los"
     )
 
     private val fallbackMeanings = mapOf(
-        "person" to "kişi", "fachkraft" to "uzman personel", "sachen" to "şeyler / eşyalar",
-        "arbeitsplatz" to "çalışma yeri", "dinge" to "şeyler / eşyalar", "ergebnis" to "sonuç",
-        "ergebnisse" to "sonuçlar", "schritte" to "adımlar", "hinweis" to "uyarı / bilgi",
-        "tage" to "günler", "angebote" to "teklifler / kampanyalar", "preis" to "fiyat",
-        "tasche" to "çanta", "kassenbon" to "kasa fişi", "zeit" to "zaman", "weg" to "yol",
-        "information" to "bilgi", "moment" to "an", "fahrt" to "yolculuk / sürüş", "probleme" to "sorunlar",
-        "aufgaben" to "görevler", "platz" to "yer", "wohnung" to "ev / daire", "fenster" to "pencere",
-        "pause" to "mola", "ruhe" to "sakinlik", "bedarf" to "ihtiyaç", "aufgabe" to "görev", "tag" to "gün",
-        "wichtig" to "önemli", "wichtigen" to "önemli", "benutzten" to "kullanılmış", "nächsten" to "sonraki",
-        "passenden" to "uygun", "kurzen" to "kısa", "sorgfältig" to "dikkatlice", "zufrieden" to "memnun",
-        "ganz" to "tamamen / oldukça", "kurz" to "kısa / kısaca", "aufmerksam" to "dikkatli",
-        "noch" to "daha / hâlâ", "einmal" to "bir kez", "zurück" to "geri", "miteinander" to "birbiriyle",
-        "ohne" to "-sız / olmadan", "weiter" to "devam", "fertig" to "hazır / bitmiş"
+        "person" to "kişi", "fachkraft" to "uzman personel", "sachen" to "şeyler / eşyalar", "arbeitsplatz" to "çalışma yeri",
+        "dinge" to "şeyler / eşyalar", "ergebnis" to "sonuç", "ergebnisse" to "sonuçlar", "schritte" to "adımlar",
+        "hinweis" to "uyarı / bilgi", "tage" to "günler", "angebote" to "teklifler / kampanyalar", "preis" to "fiyat",
+        "tasche" to "çanta", "kassenbon" to "kasa fişi", "zeit" to "zaman", "weg" to "yol", "information" to "bilgi",
+        "moment" to "an", "fahrt" to "yolculuk / sürüş", "probleme" to "sorunlar", "aufgaben" to "görevler", "platz" to "yer",
+        "wohnung" to "ev / daire", "fenster" to "pencere", "pause" to "mola", "ruhe" to "sakinlik", "bedarf" to "ihtiyaç",
+        "aufgabe" to "görev", "tag" to "gün", "wichtig" to "önemli", "wichtigen" to "önemli", "benutzten" to "kullanılmış",
+        "nächsten" to "sonraki", "passenden" to "uygun", "kurzen" to "kısa", "sorgfältig" to "dikkatlice", "zufrieden" to "memnun",
+        "ganz" to "tamamen / oldukça", "kurz" to "kısa / kısaca", "aufmerksam" to "dikkatli", "noch" to "daha / hâlâ",
+        "einmal" to "bir kez", "zurück" to "geri", "miteinander" to "birbiriyle", "ohne" to "-sız / olmadan",
+        "weiter" to "devam", "fertig" to "hazır / bitmiş"
     )
 
     private val commonMeanings = mapOf(
