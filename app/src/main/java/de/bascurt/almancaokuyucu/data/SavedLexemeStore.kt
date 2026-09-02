@@ -17,6 +17,10 @@ class SavedLexemeStore(context: Context) {
         preferences.edit().putString(KEY, json.encodeToString(items)).apply()
     }
 
+    fun clear() {
+        preferences.edit().remove(KEY).apply()
+    }
+
     private companion object {
         const val KEY = "saved_lexemes_v2"
     }
