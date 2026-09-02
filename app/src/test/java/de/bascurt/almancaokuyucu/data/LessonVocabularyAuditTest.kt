@@ -1,7 +1,6 @@
 package de.bascurt.almancaokuyucu.data
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -20,6 +19,11 @@ class LessonVocabularyAuditTest {
                     if (invalid) "${lesson.title} [${sentenceIndex + 1}:${tokenIndex + 1}] ${token.text} -> $meaning" else null
                 }
             }
+        }
+        if (missing.isNotEmpty()) {
+            println("=== EKSİK HİKÂYE SÖZLÜĞÜ ===")
+            missing.forEach(::println)
+            println("=== TOPLAM: ${missing.size} ===")
         }
         assertTrue("Eksik Türkçe anlamlar:\n${missing.joinToString("\n")}", missing.isEmpty())
     }
