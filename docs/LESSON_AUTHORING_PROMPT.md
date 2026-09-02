@@ -16,6 +16,8 @@ Aşağıdaki Almanca metni Almanca Okuyucu uygulamasına ders olarak hazırla.
 - `Bäckerei` hikâyesinde Brot, Brötchen, Kuchen, Teig, Ofen gibi isimlerle backen, bestellen, bezahlen, einpacken gibi uygun fiiller kullanılmalı.
 - `Einkaufen/Supermarkt` hikâyesinde Einkaufswagen, Kasse, Angebot, Regal, Tüte gibi kelimelerle suchen, nehmen, wiegen, bezahlen, brauchen gibi fiiller kullanılmalı.
 - Aynı temada birden fazla hikâye olabilir; ancak her yeni hikâye önceki hikâyeden farklı kelime ve ifade hedefleri getirmeli.
+- **Yeni hikâyeler kısa dört cümlelik örnekler olmamalı; normal hedef uzunluk en az yaklaşık 8 anlamlı cümle olmalı.** Cümleler tek bir olay akışı oluşturmalı ve yalnız kelime listesi gibi arka arkaya dizilmemeli.
+- Hikâye uzunluğu, hedef isim ve fiillerin doğal biçimde birden fazla bağlamda görülmesine yetecek kadar olmalı. Gereksiz tekrarlarla yapay biçimde uzatma yapılmamalı.
 - Başlığın altında kısa Türkçe özet bulunabilir; başlık Almanca kalmalıdır.
 - Metindeki her görünen kelime dokunulabilir olmalı.
 - Kelimenin Türkçe anlamını yalnız bu cümledeki anlamına göre ver. Genel sözlük anlamlarını gereksiz yere sıralama.
@@ -72,6 +74,7 @@ Aşağıdaki Almanca metni Almanca Okuyucu uygulamasına ders olarak hazırla.
 ### 9. Kalite kontrol
 Dersi eklemeden önce kontrol et:
 - Başlık tamamen Almanca mı?
+- Hikâye yaklaşık 8 veya daha fazla anlamlı cümle içeriyor mu?
 - Hikâye gerçekten belirgin bir günlük yaşam temasına mı ait?
 - Tema ile isimler ve fiiller doğal biçimde uyumlu mu?
 - Aynı kelime grubunda yanlışlıkla modal fiil var mı?
