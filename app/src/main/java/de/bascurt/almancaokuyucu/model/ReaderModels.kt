@@ -10,7 +10,18 @@ data class Lexeme(
     val type: String = "Kelime",
     val grammar: String? = null,
     val explanation: String? = null,
-    val quizEligible: Boolean = false
+    val quizEligible: Boolean = false,
+    val wordClass: String = "Diğer",
+    val infinitive: String? = null,
+    val thirdPerson: String? = null,
+    val preterite: String? = null,
+    val perfect: String? = null,
+    val article: String? = null,
+    val plural: String? = null,
+    val accusativeNote: String? = null,
+    val positive: String? = null,
+    val comparative: String? = null,
+    val superlative: String? = null
 )
 
 data class ReadingToken(val text: String, val lexeme: Lexeme)
