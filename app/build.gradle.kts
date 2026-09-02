@@ -12,8 +12,8 @@ android {
         applicationId = "de.bascurt.almancaokuyucu"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "0.4.1.3"
+        versionCode = 11
+        versionName = "0.4.1.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "CONTENT_BASE_URL", "\"https://raw.githubusercontent.com/mbkurt06/german-reader/main/content/\"")
     }
