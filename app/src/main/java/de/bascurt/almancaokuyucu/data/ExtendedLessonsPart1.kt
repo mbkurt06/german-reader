@@ -21,7 +21,7 @@ internal object ExtendedLessonsPart1 {
             "Dann füllt er die Waschmaschine und gibt Waschmittel hinein.",
             "Er wählt ein Programm und startet die Maschine.",
             "Nach einer Stunde nimmt er die nasse Wäsche heraus.",
-            "Einige Sachen hängt er auf den Wäscheständer.",
+            "Einige Sachen hängt er auf dem Wäscheständer auf.",
             "Die Handtücher kommen später in den Trockner.",
             "Am Abend faltet Mehmet alles und legt die Kleidung in den Schrank."
         )),
