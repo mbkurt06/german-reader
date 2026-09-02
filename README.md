@@ -12,7 +12,7 @@ Almanca metinlerde tek tek sözlük anlamı yerine cümledeki gerçek öğrenme 
 
 ## Kurulum
 
-`app/build.gradle.kts` içindeki `CONTENT_BASE_URL` değerinde `OWNER` yerine GitHub kullanıcı adını yazın. Projeyi Android Studio ile açın ve Gradle senkronizasyonunu çalıştırın.
+İçerik kaynağı `mbkurt06/german-reader` olarak ayarlanmıştır. Projeyi Android Studio ile açın ve Gradle senkronizasyonunu çalıştırın.
 
 ## Yol haritası
 
