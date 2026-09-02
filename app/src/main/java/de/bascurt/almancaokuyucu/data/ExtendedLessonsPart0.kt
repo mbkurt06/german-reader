@@ -22,7 +22,7 @@ internal object ExtendedLessonsPart0 {
             "Sie wäscht den Salat und schneidet eine Gurke in kleine Stücke.",
             "Danach würzt sie die Suppe mit Salz und Pfeffer.",
             "Zum Schluss legt sie die Teller auf den Tisch und serviert das Essen.",
-            "Nach dem Essen räumt sie das Geschirr in die Spülmaschine.",
+            "Nach dem Essen räumt sie das Geschirr in die Spülmaschine ein.",
             "Sie wischt die Arbeitsfläche ab und macht die Küche sauber."
         )),
         F.lesson("a2-arzt", "Beim Arzt", "A2", "Arzt • Doktor randevusu, şikâyetler ve muayene", listOf(
