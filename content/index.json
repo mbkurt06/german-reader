@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "revision": 1,
+  "lessons": [
+    { "id": "naturereignisse-001", "title": "Naturereignisse", "level": "B2", "file": "texts/naturereignisse-001.json", "revision": 1 }
+  ]
+}
