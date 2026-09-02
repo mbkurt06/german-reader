@@ -83,4 +83,8 @@ class UserPreferencesStore(context: Context) {
             .putInt("study_sessions", 0)
             .apply()
     }
+
+    fun clearAll() {
+        prefs.edit().clear().apply()
+    }
 }
