@@ -127,8 +127,8 @@ private fun GermanReaderApp() {
                     onComplete = { completeLesson(currentLesson!!) },
                     onHome = { currentLesson = null }
                 )
-                page == AppPage.STUDY_DE_TR -> MeaningStudyScreen(studyItems, germanToTurkish = true, { page = AppPage.STUDY_MENU }, ::recordAnswer)
-                page == AppPage.STUDY_TR_DE -> MeaningStudyScreen(studyItems, germanToTurkish = false, { page = AppPage.STUDY_MENU }, ::recordAnswer)
+                page == AppPage.STUDY_DE_TR -> MeaningStudyScreen(studyItems, true, { page = AppPage.STUDY_MENU }, ::recordAnswer)
+                page == AppPage.STUDY_TR_DE -> MeaningStudyScreen(studyItems, false, { page = AppPage.STUDY_MENU }, ::recordAnswer)
                 page == AppPage.STUDY_FILL -> FillBlankStudyScreen(studyItems, SampleLessons.all, { page = AppPage.STUDY_MENU }, ::recordAnswer)
                 else -> MainShell(
                     page = page,
