@@ -19,4 +19,4 @@ jobs:
         with:
           gradle-version: '8.10.2'
       - name: Run vocabulary regression tests
-        run: gradle testDebugUnitTest --tests 'de.bascurt.almancaokuyucu.data.LessonVocabularyAuditTest' --stacktrace
+        run: gradle testDebugUnitTest --tests 'de.bascurt.almancaokuyucu.data.LessonVocabularyAuditTest' --info
