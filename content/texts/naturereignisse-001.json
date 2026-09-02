@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "id": "naturereignisse-001",
+  "title": "Naturereignisse",
+  "level": "B2",
+  "blocks": [
+    { "id": "p1", "text": "In Nebraska versammeln sich jedes Jahr über eine halbe Million Sandhill-Kraniche." },
+    { "id": "p2", "text": "Der Moskenstraumen-Strudel beeindruckt mit seinen starken Strömungen." }
+  ],
+  "learningUnits": [
+    {
+      "id": "u-sich-versammeln",
+      "base": "sich versammeln",
+      "type": "reflexive_verb",
+      "meaningTr": "toplanmak, bir araya gelmek",
+      "grammar": "Perfekt: hat sich versammelt",
+      "noteTr": "sich tek başına çevrilmez; fiille birlikte öğrenilir.",
+      "ranges": [
+        { "blockId": "p1", "start": 12, "endExclusive": 22, "role": "verb" },
+        { "blockId": "p1", "start": 23, "endExclusive": 27, "role": "reflexive_pronoun" }
+      ],
+      "examples": [{ "de": "Die Schüler versammeln sich vor der Schule.", "tr": "Öğrenciler okulun önünde toplanıyor." }],
+      "tags": ["reflexive", "B1"]
+    },
+    {
+      "id": "u-beeindrucken-mit",
+      "base": "jemanden mit etwas beeindrucken",
+      "type": "verb_context_pattern",
+      "meaningTr": "birini bir şeyle etkilemek",
+      "grammar": "mit + Dativ",
+      "noteTr": "beeindrucken zorunlu olarak mit isteyen bir fiil değildir; burada araç/özellik bildirir.",
+      "ranges": [
+        { "blockId": "p2", "start": 27, "endExclusive": 38, "role": "verb" },
+        { "blockId": "p2", "start": 39, "endExclusive": 42, "role": "preposition" }
+      ],
+      "examples": [{ "de": "Sie beeindruckt alle mit ihrer Stimme.", "tr": "Sesiyle herkesi etkiliyor." }],
+      "tags": ["verb_pattern", "dative"]
+    }
+  ],
+  "activities": [
+    { "id": "quiz-1", "type": "gap_fill", "unitIds": ["u-sich-versammeln", "u-beeindrucken-mit"] },
+    { "id": "review-1", "type": "spaced_repetition", "unitIds": [] },
+    { "id": "audio-1", "type": "listen_and_repeat", "unitIds": [] }
+  ]
+}
