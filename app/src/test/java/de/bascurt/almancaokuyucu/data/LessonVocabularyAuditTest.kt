@@ -20,10 +20,28 @@ class LessonVocabularyAuditTest {
                 }
             }
         }
+
+        val missingWords = SampleLessons.all
+            .flatMap { it.sentences }
+            .flatten()
+            .filter { token ->
+                val meaning = token.lexeme.meaning.trim()
+                meaning.isBlank() ||
+                    meaning.contains("tamamlanmalı", ignoreCase = true) ||
+                    meaning.contains("eksik", ignoreCase = true)
+            }
+            .map { token -> cleanForAudit(token.text) }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
+
         if (missing.isNotEmpty()) {
-            println("=== EKSİK HİKÂYE SÖZLÜĞÜ ===")
+            println("=== EKSİK HİKÂYE SÖZLÜĞÜ: TEKRARSIZ KELİMELER ===")
+            println(missingWords.joinToString(", "))
+            println("=== TEKRARSIZ EKSİK: ${missingWords.size} ===")
+            println("=== TÜM KONUMLAR ===")
             missing.forEach(::println)
-            println("=== TOPLAM: ${missing.size} ===")
+            println("=== TOPLAM EKSİK KULLANIM: ${missing.size} ===")
         }
         assertTrue("Eksik Türkçe anlamlar:\n${missing.joinToString("\n")}", missing.isEmpty())
     }
@@ -65,4 +83,8 @@ class LessonVocabularyAuditTest {
         assertNotEquals(verb.lexeme.id, auf.lexeme.id)
         assertEquals("Edat", auf.lexeme.wordClass)
     }
+
+    private fun cleanForAudit(text: String): String = text
+        .trim('"', '„', '“', '.', ',', ':', ';', '!', '?', '(', ')')
+        .lowercase()
 }
