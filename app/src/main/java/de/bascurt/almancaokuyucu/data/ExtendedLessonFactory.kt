@@ -5,9 +5,21 @@ import de.bascurt.almancaokuyucu.model.ReaderLesson
 import de.bascurt.almancaokuyucu.model.ReadingToken
 
 internal object ExtendedLessonFactory {
+    private data class SeparablePattern(
+        val surface: String,
+        val particle: String,
+        val seed: ExtendedVerbSeed
+    )
+
     fun lesson(id: String, title: String, level: String, summary: String, texts: List<String>): ReaderLesson {
         val expandedTexts = texts + reinforcementSentences(summary)
-        return ReaderLesson(id, title, level, summary, expandedTexts.mapIndexed { si, sentence -> tokenizeSentence(id, si, sentence) })
+        return ReaderLesson(
+            id,
+            title,
+            level,
+            summary,
+            expandedTexts.mapIndexed { si, sentence -> tokenizeSentence(id, si, sentence) }
+        )
     }
 
     fun appendSentences(lesson: ReaderLesson, texts: List<String>): ReaderLesson {
@@ -20,26 +32,36 @@ internal object ExtendedLessonFactory {
     private fun tokenizeSentence(lessonId: String, sentenceIndex: Int, sentence: String): List<ReadingToken> {
         val shownTokens = sentence.split(" ")
         val keys = shownTokens.map(::clean)
-        val lexemes = keys.mapIndexed { ti, key -> lexemeFor(lessonId, sentenceIndex, ti, key) }.toMutableList()
+        val lexemes = keys.mapIndexed { ti, key ->
+            lexemeFor(lessonId, sentenceIndex, ti, key, shownTokens[ti])
+        }.toMutableList()
 
-        keys.forEachIndexed { verbIndex, key ->
-            val particle = separableParticles[key] ?: return@forEachIndexed
-            val seed = extendedVerbLexicon[key] ?: return@forEachIndexed
-            if (!supportsParticle(seed.base, particle)) return@forEachIndexed
-            val particleIndex = keys.indexOfLast { it == particle }
-            if (particleIndex > verbIndex) {
-                val grouped = verbLexeme(lessonId, key, seed, "Ayrılabilen fiil: cümlede ‘${shownTokens[verbIndex]} … ${shownTokens[particleIndex]}’ birlikte tek yapı olarak öğrenilir.")
-                lexemes[verbIndex] = grouped
-                lexemes[particleIndex] = grouped
-            }
+        separablePatterns.forEach { pattern ->
+            val verbIndex = keys.indexOf(pattern.surface)
+            if (verbIndex < 0) return@forEach
+            val particleIndex = (verbIndex + 1 until keys.size).firstOrNull { keys[it] == pattern.particle } ?: return@forEach
+            val grouped = verbLexeme(
+                lessonId = lessonId,
+                v = pattern.seed,
+                note = "Ayrılabilen fiil: cümlede ‘${shownTokens[verbIndex]} … ${shownTokens[particleIndex]}’ tek fiildir. İki parçadan birine dokunulduğunda ikisi birlikte seçilir."
+            )
+            lexemes[verbIndex] = grouped
+            lexemes[particleIndex] = grouped
         }
 
         keys.forEachIndexed { verbIndex, key ->
             val seed = extendedVerbLexicon[key] ?: return@forEachIndexed
             if (!seed.base.startsWith("sich ")) return@forEachIndexed
-            val sichIndex = keys.indexOf("sich")
-            if (sichIndex >= 0 && kotlin.math.abs(sichIndex - verbIndex) <= 5) {
-                val grouped = verbLexeme(lessonId, key, seed, "Dönüşlü fiil: ‘sich’ ve fiil birlikte tek kelime grubu olarak öğrenilir.")
+            val sichIndex = keys.indices
+                .filter { keys[it] == "sich" }
+                .minByOrNull { kotlin.math.abs(it - verbIndex) }
+                ?: return@forEachIndexed
+            if (kotlin.math.abs(sichIndex - verbIndex) <= 6) {
+                val grouped = verbLexeme(
+                    lessonId,
+                    seed,
+                    "Dönüşlü fiil: ‘sich’ ve fiil birlikte tek kelime grubu olarak öğrenilir."
+                )
                 lexemes[verbIndex] = grouped
                 lexemes[sichIndex] = grouped
             }
@@ -48,40 +70,85 @@ internal object ExtendedLessonFactory {
         return shownTokens.mapIndexed { index, shown -> ReadingToken(shown, lexemes[index]) }
     }
 
-    private fun supportsParticle(base: String, particle: String): Boolean =
-        base.split("/").map { it.trim().removePrefix("sich ") }.any { it.startsWith(particle) }
-
-    private fun lexemeFor(lessonId: String, sentenceIndex: Int, tokenIndex: Int, key: String): Lexeme {
-        extendedVerbLexicon[key]?.let { return verbLexeme(lessonId, key, it) }
+    private fun lexemeFor(
+        lessonId: String,
+        sentenceIndex: Int,
+        tokenIndex: Int,
+        key: String,
+        shown: String
+    ): Lexeme {
+        extendedVerbLexicon[key]?.let { return verbLexeme(lessonId, it) }
         extendedNounLexicon[key]?.let { n ->
             return Lexeme(
-                id = "$lessonId-n-$key", base = n.base,
-                meaning = n.meaning.ifBlank { "Türkçe anlam henüz tanımlanmadı" },
-                type = "Kelime", explanation = "Bu isim hikâyenin temasındaki önemli günlük kelimelerden biridir.",
-                quizEligible = true, wordClass = "İsim", article = n.article, plural = n.plural
+                id = "$lessonId-n-${n.base.lowercase()}",
+                base = n.base,
+                meaning = n.meaning,
+                type = "Kelime",
+                explanation = "Bu isim hikâyenin temasındaki önemli günlük kelimelerden biridir.",
+                quizEligible = true,
+                wordClass = "İsim",
+                article = n.article,
+                plural = n.plural
             )
         }
         commonMeanings[key]?.let { c ->
-            return Lexeme(id = "$lessonId-c-$sentenceIndex-$tokenIndex", base = c.first, meaning = c.second, type = c.third, quizEligible = false, wordClass = c.third)
+            return Lexeme(
+                id = "$lessonId-c-$sentenceIndex-$tokenIndex",
+                base = c.first,
+                meaning = c.second,
+                type = c.third,
+                quizEligible = false,
+                wordClass = c.third
+            )
         }
-        fallbackMeanings[key]?.let { meaning ->
-            return Lexeme(id = "$lessonId-f-$key", base = key, meaning = meaning, type = "Kelime", quizEligible = false, wordClass = "Diğer")
+        surfaceMeanings[key]?.let { value ->
+            return Lexeme(
+                id = "$lessonId-f-$key",
+                base = value.first,
+                meaning = value.second,
+                type = value.third,
+                quizEligible = false,
+                wordClass = value.third
+            )
+        }
+        if (shown.firstOrNull()?.isUpperCase() == true) {
+            return Lexeme(
+                id = "$lessonId-name-$sentenceIndex-$tokenIndex",
+                base = shown.trim('"', '„', '“', '.', ',', ':', ';', '!', '?'),
+                meaning = "özel isim / ad",
+                type = "Özel isim",
+                quizEligible = false,
+                wordClass = "Özel isim"
+            )
         }
         return Lexeme(
-            id = "$lessonId-x-$sentenceIndex-$tokenIndex", base = key,
-            meaning = "Türkçe anlam henüz tanımlanmadı",
-            explanation = "Bu kelimenin bağlama özel Türkçe karşılığı içerik sözlüğüne henüz eklenmedi.",
-            type = "Diğer", quizEligible = false, wordClass = "Diğer"
+            id = "$lessonId-x-$sentenceIndex-$tokenIndex",
+            base = key,
+            meaning = "Türkçe karşılığı içerik sözlüğünde eksik",
+            explanation = "Bu kayıt sınav havuzuna alınmaz ve içerik kalite kontrolünde tamamlanmalıdır.",
+            type = "Diğer",
+            quizEligible = false,
+            wordClass = "Diğer"
         )
     }
 
-    private fun verbLexeme(lessonId: String, key: String, v: ExtendedVerbSeed, note: String = "Bu fiil bu günlük yaşam temasında sık kullanılan temel bir eylemdir.") =
-        Lexeme(
-            id = "$lessonId-v-${v.base}", base = v.base,
-            meaning = v.meaning.ifBlank { "Türkçe anlam henüz tanımlanmadı" },
-            type = "Kelime grubu", explanation = note, quizEligible = true, wordClass = "Fiil",
-            infinitive = v.base, thirdPerson = v.third, preterite = v.preterite, perfect = v.perfect
-        )
+    private fun verbLexeme(
+        lessonId: String,
+        v: ExtendedVerbSeed,
+        note: String = "Bu fiil bu günlük yaşam temasında sık kullanılan temel bir eylemdir."
+    ) = Lexeme(
+        id = "$lessonId-v-${v.base}",
+        base = v.base,
+        meaning = v.meaning,
+        type = if (v.base.contains(' ')) "Kelime grubu" else "Fiil",
+        explanation = note,
+        quizEligible = true,
+        wordClass = "Fiil",
+        infinitive = v.base,
+        thirdPerson = v.third,
+        preterite = v.preterite,
+        perfect = v.perfect
+    )
 
     private fun reinforcementSentences(summary: String): List<String> {
         val category = summary.substringBefore('•').trim().lowercase()
@@ -124,46 +191,113 @@ internal object ExtendedLessonFactory {
         }
     }
 
-    private fun clean(text: String): String = text.trim('"', '„', '“', '.', ',', ':', ';', '!', '?', '(', ')').lowercase()
+    private fun clean(text: String): String =
+        text.trim('"', '„', '“', '.', ',', ':', ';', '!', '?', '(', ')').lowercase()
 
-    private val separableParticles = mapOf(
-        "hängt" to "auf", "räumt" to "aus", "holt" to "ab", "meldet" to "an", "steigt" to "ein",
-        "ordnet" to "an", "packt" to "ein", "baut" to "zusammen", "zieht" to "an", "trocknet" to "ab",
-        "nimmt" to "mit", "stellt" to "vor", "macht" to "auf", "schaltet" to "ein", "ruft" to "an",
-        "gibt" to "ab", "kommt" to "zurück", "fährt" to "los"
+    private val separablePatterns = listOf(
+        SeparablePattern("macht", "an", ExtendedVerbSeed("anmachen", "açmak / çalıştırmak", "macht an", "machte an", "hat angemacht")),
+        SeparablePattern("macht", "auf", ExtendedVerbSeed("aufmachen", "açmak", "macht auf", "machte auf", "hat aufgemacht")),
+        SeparablePattern("trocknet", "ab", ExtendedVerbSeed("abtrocknen", "kurulamak", "trocknet ab", "trocknete ab", "hat abgetrocknet")),
+        SeparablePattern("räumt", "weg", ExtendedVerbSeed("wegräumen", "ortadan kaldırmak / yerine koymak", "räumt weg", "räumte weg", "hat weggeräumt")),
+        SeparablePattern("räumt", "auf", ExtendedVerbSeed("aufräumen", "toplamak / düzenlemek", "räumt auf", "räumte auf", "hat aufgeräumt")),
+        SeparablePattern("räumt", "aus", ExtendedVerbSeed("ausräumen", "boşaltmak", "räumt aus", "räumte aus", "hat ausgeräumt")),
+        SeparablePattern("räumt", "ein", ExtendedVerbSeed("einräumen", "yerleştirmek / içine dizmek", "räumt ein", "räumte ein", "hat eingeräumt")),
+        SeparablePattern("räumt", "ab", ExtendedVerbSeed("abräumen", "masayı toplamak", "räumt ab", "räumte ab", "hat abgeräumt")),
+        SeparablePattern("zieht", "an", ExtendedVerbSeed("anziehen", "giymek", "zieht an", "zog an", "hat angezogen")),
+        SeparablePattern("stellt", "auf", ExtendedVerbSeed("aufstellen", "kurmak / dikmek / yerleştirmek", "stellt auf", "stellte auf", "hat aufgestellt")),
+        SeparablePattern("stellt", "vor", ExtendedVerbSeed("vorstellen", "tanıtmak / sunmak", "stellt vor", "stellte vor", "hat vorgestellt")),
+        SeparablePattern("baut", "zusammen", ExtendedVerbSeed("zusammenbauen", "monte etmek / kurmak", "baut zusammen", "baute zusammen", "hat zusammengebaut")),
+        SeparablePattern("füllt", "hinein", ExtendedVerbSeed("hineinfüllen", "içine doldurmak", "füllt hinein", "füllte hinein", "hat hineingefüllt")),
+        SeparablePattern("füllt", "nach", ExtendedVerbSeed("nachfüllen", "yeniden doldurmak", "füllt nach", "füllte nach", "hat nachgefüllt")),
+        SeparablePattern("probiert", "an", ExtendedVerbSeed("anprobieren", "denemek (kıyafet)", "probiert an", "probierte an", "hat anprobiert")),
+        SeparablePattern("meldet", "an", ExtendedVerbSeed("anmelden", "kayıt yaptırmak / bildirmek", "meldet an", "meldete an", "hat angemeldet")),
+        SeparablePattern("hört", "ab", ExtendedVerbSeed("abhören", "dinleyerek muayene etmek", "hört ab", "hörte ab", "hat abgehört")),
+        SeparablePattern("ruft", "an", ExtendedVerbSeed("anrufen", "telefonla aramak", "ruft an", "rief an", "hat angerufen")),
+        SeparablePattern("hängt", "auf", ExtendedVerbSeed("aufhängen", "asmak", "hängt auf", "hängte auf", "hat aufgehängt")),
+        SeparablePattern("hängt", "zurück", ExtendedVerbSeed("zurückhängen", "geri asmak / yerine asmak", "hängt zurück", "hängte zurück", "hat zurückgehängt")),
+        SeparablePattern("holt", "ab", ExtendedVerbSeed("abholen", "gidip almak / teslim almak", "holt ab", "holte ab", "hat abgeholt")),
+        SeparablePattern("packt", "ein", ExtendedVerbSeed("einpacken", "paketlemek / içine koymak", "packt ein", "packte ein", "hat eingepackt")),
+        SeparablePattern("packt", "aus", ExtendedVerbSeed("auspacken", "paketten çıkarmak", "packt aus", "packte aus", "hat ausgepackt")),
+        SeparablePattern("kommt", "an", ExtendedVerbSeed("ankommen", "varmak", "kommt an", "kam an", "ist angekommen")),
+        SeparablePattern("wärmt", "auf", ExtendedVerbSeed("sich aufwärmen", "ısınmak", "wärmt sich auf", "wärmte sich auf", "hat sich aufgewärmt")),
+        SeparablePattern("trägt", "ein", ExtendedVerbSeed("eintragen", "kaydetmek / girmek", "trägt ein", "trug ein", "hat eingetragen")),
+        SeparablePattern("gibt", "ab", ExtendedVerbSeed("abgeben", "teslim etmek", "gibt ab", "gab ab", "hat abgegeben")),
+        SeparablePattern("nimmt", "mit", ExtendedVerbSeed("mitnehmen", "yanına almak / götürmek", "nimmt mit", "nahm mit", "hat mitgenommen")),
+        SeparablePattern("legt", "weg", ExtendedVerbSeed("weglegen", "bir kenara koymak", "legt weg", "legte weg", "hat weggelegt")),
+        SeparablePattern("fährt", "ab", ExtendedVerbSeed("abfahren", "hareket etmek / yola çıkmak", "fährt ab", "fuhr ab", "ist abgefahren")),
+        SeparablePattern("fährt", "ein", ExtendedVerbSeed("einfahren", "istasyona girmek", "fährt ein", "fuhr ein", "ist eingefahren")),
+        SeparablePattern("fährt", "los", ExtendedVerbSeed("losfahren", "yola çıkmak", "fährt los", "fuhr los", "ist losgefahren")),
+        SeparablePattern("fährt", "weiter", ExtendedVerbSeed("weiterfahren", "yola devam etmek", "fährt weiter", "fuhr weiter", "ist weitergefahren")),
+        SeparablePattern("steigt", "ein", ExtendedVerbSeed("einsteigen", "binmek", "steigt ein", "stieg ein", "ist eingestiegen")),
+        SeparablePattern("steigt", "aus", ExtendedVerbSeed("aussteigen", "inmek", "steigt aus", "stieg aus", "ist ausgestiegen")),
+        SeparablePattern("schließt", "ein", ExtendedVerbSeed("einschließen", "kilitlemek / içine kilitlemek", "schließt ein", "schloss ein", "hat eingeschlossen")),
+        SeparablePattern("liest", "ab", ExtendedVerbSeed("ablesen", "okuyup aktarmak", "liest ab", "las ab", "hat abgelesen")),
+        SeparablePattern("klebt", "auf", ExtendedVerbSeed("aufkleben", "yapıştırmak", "klebt auf", "klebte auf", "hat aufgeklebt")),
+        SeparablePattern("bereitet", "vor", ExtendedVerbSeed("vorbereiten", "hazırlamak", "bereitet vor", "bereitete vor", "hat vorbereitet"))
     )
 
-    private val fallbackMeanings = mapOf(
-        "person" to "kişi", "fachkraft" to "uzman personel", "sachen" to "şeyler / eşyalar", "arbeitsplatz" to "çalışma yeri",
-        "dinge" to "şeyler / eşyalar", "ergebnis" to "sonuç", "ergebnisse" to "sonuçlar", "schritte" to "adımlar",
-        "hinweis" to "uyarı / bilgi", "tage" to "günler", "angebote" to "teklifler / kampanyalar", "preis" to "fiyat",
-        "tasche" to "çanta", "kassenbon" to "kasa fişi", "zeit" to "zaman", "weg" to "yol", "information" to "bilgi",
-        "moment" to "an", "fahrt" to "yolculuk / sürüş", "probleme" to "sorunlar", "aufgaben" to "görevler", "platz" to "yer",
-        "wohnung" to "ev / daire", "fenster" to "pencere", "pause" to "mola", "ruhe" to "sakinlik", "bedarf" to "ihtiyaç",
-        "aufgabe" to "görev", "tag" to "gün", "wichtig" to "önemli", "wichtigen" to "önemli", "benutzten" to "kullanılmış",
-        "nächsten" to "sonraki", "passenden" to "uygun", "kurzen" to "kısa", "sorgfältig" to "dikkatlice", "zufrieden" to "memnun",
-        "ganz" to "tamamen / oldukça", "kurz" to "kısa / kısaca", "aufmerksam" to "dikkatli", "noch" to "daha / hâlâ",
-        "einmal" to "bir kez", "zurück" to "geri", "miteinander" to "birbiriyle", "ohne" to "-sız / olmadan",
-        "weiter" to "devam", "fertig" to "hazır / bitmiş"
+    private val surfaceMeanings = mapOf(
+        "ich" to Triple("ich", "ben", "Zamir"), "du" to Triple("du", "sen", "Zamir"), "wir" to Triple("wir", "biz", "Zamir"),
+        "ihnen" to Triple("ihnen", "onlara / size", "Zamir"), "mein" to Triple("mein", "benim", "Belirleyici"), "meine" to Triple("meine", "benim", "Belirleyici"),
+        "meinen" to Triple("meinen", "benim", "Belirleyici"), "seiner" to Triple("seiner", "onun", "Belirleyici"), "seinem" to Triple("seinem", "onun", "Belirleyici"),
+        "ihrem" to Triple("ihrem", "onun", "Belirleyici"), "ihrer" to Triple("ihrer", "onun", "Belirleyici"), "dieses" to Triple("dieses", "bu", "Belirleyici"),
+        "diese" to Triple("diese", "bu / bunlar", "Belirleyici"), "dieser" to Triple("dieser", "bu", "Belirleyici"), "welche" to Triple("welche", "hangi", "Zamir"),
+        "was" to Triple("was", "ne", "Zamir"), "wer" to Triple("wer", "kim", "Zamir"), "manche" to Triple("manche", "bazı", "Belirleyici"),
+        "mehrere" to Triple("mehrere", "birkaç / birden fazla", "Belirleyici"), "zwei" to Triple("zwei", "iki", "Sayı"), "drei" to Triple("drei", "üç", "Sayı"),
+        "vier" to Triple("vier", "dört", "Sayı"), "fünf" to Triple("fünf", "beş", "Sayı"), "sechs" to Triple("sechs", "altı", "Sayı"),
+        "sieben" to Triple("sieben", "yedi", "Sayı"), "acht" to Triple("acht", "sekiz", "Sayı"), "zehn" to Triple("zehn", "on", "Sayı"),
+        "zwanzig" to Triple("zwanzig", "yirmi", "Sayı"), "vierzig" to Triple("vierzig", "kırk", "Sayı"),
+        "erste" to Triple("erste", "ilk", "Sıfat"), "ersten" to Triple("erste", "ilk", "Sıfat"), "zweite" to Triple("zweite", "ikinci", "Sıfat"),
+        "dritte" to Triple("dritte", "üçüncü", "Sıfat"), "neue" to Triple("neu", "yeni", "Sıfat"), "neuen" to Triple("neu", "yeni", "Sıfat"),
+        "neues" to Triple("neu", "yeni", "Sıfat"), "kleine" to Triple("klein", "küçük", "Sıfat"), "kleinen" to Triple("klein", "küçük", "Sıfat"),
+        "große" to Triple("groß", "büyük", "Sıfat"), "großen" to Triple("groß", "büyük", "Sıfat"), "starke" to Triple("stark", "şiddetli / güçlü", "Sıfat"),
+        "schweren" to Triple("schwer", "ağır", "Sıfat"), "leichter" to Triple("leicht", "hafif", "Sıfat"), "freie" to Triple("frei", "boş / serbest", "Sıfat"),
+        "freien" to Triple("frei", "boş / serbest", "Sıfat"), "frisches" to Triple("frisch", "taze", "Sıfat"), "frisch" to Triple("frisch", "taze", "Sıfat"),
+        "reife" to Triple("reif", "olgun", "Sıfat"), "schmutzige" to Triple("schmutzig", "kirli", "Sıfat"), "helle" to Triple("hell", "açık renkli", "Sıfat"),
+        "dunkle" to Triple("dunkel", "koyu renkli", "Sıfat"), "nasse" to Triple("nass", "ıslak", "Sıfat"), "nassen" to Triple("nass", "ıslak", "Sıfat"),
+        "trockenen" to Triple("trocken", "kuru", "Sıfat"), "bequem" to Triple("bequem", "rahat", "Sıfat"), "bequeme" to Triple("bequem", "rahat", "Sıfat"),
+        "lang" to Triple("lang", "uzun", "Sıfat"), "kurz" to Triple("kurz", "kısa / kısaca", "Sıfat"), "schön" to Triple("schön", "güzel", "Sıfat"),
+        "schönen" to Triple("schön", "güzel", "Sıfat"), "lecker" to Triple("lecker", "lezzetli", "Sıfat"), "salzig" to Triple("salzig", "tuzlu", "Sıfat"),
+        "sauber" to Triple("sauber", "temiz", "Sıfat"), "ordentlich" to Triple("ordentlich", "düzenli", "Sıfat"), "müde" to Triple("müde", "yorgun", "Sıfat"),
+        "zufrieden" to Triple("zufrieden", "memnun", "Sıfat"), "allein" to Triple("allein", "yalnız", "Sıfat"), "geeignetes" to Triple("geeignet", "uygun", "Sıfat"),
+        "möglichen" to Triple("möglich", "olası", "Sıfat"), "ungewöhnliches" to Triple("ungewöhnlich", "alışılmadık", "Sıfat"), "richtig" to Triple("richtig", "doğru", "Sıfat"),
+        "richtige" to Triple("richtig", "doğru", "Sıfat"), "verschiedene" to Triple("verschieden", "farklı", "Sıfat"), "verschiedenen" to Triple("verschieden", "farklı", "Sıfat"),
+        "ähnliches" to Triple("ähnlich", "benzer", "Sıfat"), "günstiger" to Triple("günstig", "daha uygun fiyatlı", "Sıfat"), "besser" to Triple("gut", "daha iyi", "Sıfat"),
+        "schlechter" to Triple("schlecht", "daha kötü", "Sıfat"), "schlecht" to Triple("schlecht", "kötü", "Sıfat"), "langsam" to Triple("langsam", "yavaş", "Zarf"),
+        "schnell" to Triple("schnell", "hızlı", "Zarf"), "direkt" to Triple("direkt", "doğrudan", "Zarf"), "gemeinsam" to Triple("gemeinsam", "birlikte", "Zarf"),
+        "getrennt" to Triple("getrennt", "ayrı ayrı", "Zarf"), "vorsichtig" to Triple("vorsichtig", "dikkatlice", "Zarf"), "sorgfältig" to Triple("sorgfältig", "özenle / dikkatlice", "Zarf"),
+        "wahrscheinlich" to Triple("wahrscheinlich", "muhtemelen", "Zarf"), "ungefähr" to Triple("ungefähr", "yaklaşık", "Zarf"), "besonders" to Triple("besonders", "özellikle", "Zarf"),
+        "häufig" to Triple("häufig", "sık sık", "Zarf"), "manchmal" to Triple("manchmal", "bazen", "Zarf"), "oft" to Triple("oft", "sık sık", "Zarf"),
+        "fast" to Triple("fast", "neredeyse", "Zarf"), "nur" to Triple("nur", "sadece", "Zarf"), "mehr" to Triple("mehr", "daha fazla", "Zarf"),
+        "weniger" to Triple("weniger", "daha az", "Zarf"), "vorne" to Triple("vorne", "önde", "Zarf"), "draußen" to Triple("draußen", "dışarıda", "Zarf"),
+        "oben" to Triple("oben", "yukarıda", "Zarf"), "unten" to Triple("unten", "aşağıda", "Zarf"), "dort" to Triple("dort", "orada", "Zarf"),
+        "dabei" to Triple("dabei", "bu sırada / bunun yanında", "Zarf"), "deshalb" to Triple("deshalb", "bu yüzden", "Zarf"), "außerdem" to Triple("außerdem", "ayrıca", "Zarf"),
+        "plötzlich" to Triple("plötzlich", "aniden", "Zarf"), "schließlich" to Triple("schließlich", "sonunda", "Zarf"), "anschließend" to Triple("anschließend", "ardından", "Zarf"),
+        "ohne" to Triple("ohne", "-sız / olmadan", "Edat"), "wegen" to Triple("wegen", "nedeniyle", "Edat"), "bis" to Triple("bis", "-e kadar", "Edat"),
+        "seit" to Triple("seit", "-den beri", "Edat"), "gegen" to Triple("gegen", "karşı / civarında", "Edat"), "zwischen" to Triple("zwischen", "arasında", "Edat"),
+        "als" to Triple("als", "olarak / -dığında", "Bağlaç"), "obwohl" to Triple("obwohl", "-mesine rağmen", "Bağlaç"), "damit" to Triple("damit", "bununla / böylece", "Bağlaç"),
+        "sondern" to Triple("sondern", "aksine", "Bağlaç"), "oder" to Triple("oder", "veya", "Bağlaç"), "keinen" to Triple("keinen", "hiç / yok", "Belirleyici"),
+        "jeden" to Triple("jeden", "her", "Belirleyici"), "jede" to Triple("jede", "her", "Belirleyici"), "jeder" to Triple("jeder", "her", "Belirleyici")
     )
 
     private val commonMeanings = mapOf(
         "der" to Triple("der", "artikel", "Artikel"), "die" to Triple("die", "artikel", "Artikel"), "das" to Triple("das", "artikel", "Artikel"),
-        "den" to Triple("den", "artikel", "Artikel"), "dem" to Triple("dem", "artikel", "Artikel"), "ein" to Triple("ein", "bir", "Artikel"),
-        "eine" to Triple("eine", "bir", "Artikel"), "einen" to Triple("einen", "bir", "Artikel"), "einem" to Triple("einem", "bir", "Artikel"), "einer" to Triple("einer", "bir", "Artikel"),
+        "den" to Triple("den", "artikel", "Artikel"), "dem" to Triple("dem", "artikel", "Artikel"), "des" to Triple("des", "artikel", "Artikel"),
+        "ein" to Triple("ein", "bir", "Artikel"), "eine" to Triple("eine", "bir", "Artikel"), "einen" to Triple("einen", "bir", "Artikel"), "einem" to Triple("einem", "bir", "Artikel"), "einer" to Triple("einer", "bir", "Artikel"),
         "und" to Triple("und", "ve", "Bağlaç"), "aber" to Triple("aber", "ama", "Bağlaç"), "weil" to Triple("weil", "çünkü", "Bağlaç"),
         "dass" to Triple("dass", "-dığı / ki", "Bağlaç"), "wenn" to Triple("wenn", "eğer / -dığında", "Bağlaç"), "bevor" to Triple("bevor", "-meden önce", "Bağlaç"),
         "während" to Triple("während", "-iken / sırasında", "Bağlaç"), "ob" to Triple("ob", "olup olmadığını", "Bağlaç"),
-        "im" to Triple("im", "-de / içinde", "Edat"), "in" to Triple("in", "-de / içine", "Edat"), "am" to Triple("am", "-de / sırasında", "Edat"),
-        "an" to Triple("an", "-de / yanında", "Edat"), "auf" to Triple("auf", "üzerinde / üzerine", "Edat"), "mit" to Triple("mit", "ile", "Edat"),
-        "für" to Triple("für", "için", "Edat"), "nach" to Triple("nach", "sonra / -e doğru", "Edat"), "vor" to Triple("vor", "önce / önünde", "Edat"),
-        "von" to Triple("von", "-den / tarafından", "Edat"), "zu" to Triple("zu", "-e / -a", "Edat"), "zum" to Triple("zum", "-e / -a", "Edat"),
-        "zur" to Triple("zur", "-e / -a", "Edat"), "aus" to Triple("aus", "-den / dışarı", "Edat"), "bei" to Triple("bei", "-de / yanında", "Edat"),
-        "über" to Triple("über", "hakkında / üzerinde", "Edat"), "unter" to Triple("unter", "altında", "Edat"), "neben" to Triple("neben", "yanında", "Edat"),
-        "durch" to Triple("durch", "içinden / boyunca", "Edat"), "sie" to Triple("sie", "o / onlar", "Zamir"), "er" to Triple("er", "o", "Zamir"),
-        "es" to Triple("es", "o", "Zamir"), "ihr" to Triple("ihr", "ona / onun", "Zamir"), "ihre" to Triple("ihre", "onun", "Zamir"),
-        "ihren" to Triple("ihren", "onun", "Zamir"), "ihm" to Triple("ihm", "ona", "Zamir"), "seine" to Triple("seine", "onun", "Zamir"),
-        "seinen" to Triple("seinen", "onun", "Zamir"), "sich" to Triple("sich", "kendini / kendisine", "Zamir"), "alle" to Triple("alle", "hepsi", "Zamir"),
+        "im" to Triple("im", "-de / içinde", "Edat"), "ins" to Triple("ins", "içine / -e", "Edat"), "in" to Triple("in", "-de / içine", "Edat"),
+        "am" to Triple("am", "-de / sırasında", "Edat"), "an" to Triple("an", "-de / yanında", "Edat"), "auf" to Triple("auf", "üzerinde / üzerine", "Edat"),
+        "mit" to Triple("mit", "ile", "Edat"), "für" to Triple("für", "için", "Edat"), "nach" to Triple("nach", "sonra / -e doğru", "Edat"),
+        "vor" to Triple("vor", "önce / önünde", "Edat"), "von" to Triple("von", "-den / tarafından", "Edat"), "zu" to Triple("zu", "-e / -a", "Edat"),
+        "zum" to Triple("zum", "-e / -a", "Edat"), "zur" to Triple("zur", "-e / -a", "Edat"), "aus" to Triple("aus", "-den / dışarı", "Edat"),
+        "bei" to Triple("bei", "-de / yanında", "Edat"), "beim" to Triple("beim", "-de / sırasında", "Edat"), "über" to Triple("über", "hakkında / üzerinde", "Edat"),
+        "unter" to Triple("unter", "altında", "Edat"), "neben" to Triple("neben", "yanında", "Edat"), "durch" to Triple("durch", "içinden / boyunca", "Edat"),
+        "sie" to Triple("sie", "o / onlar", "Zamir"), "er" to Triple("er", "o", "Zamir"), "es" to Triple("es", "o", "Zamir"),
+        "ihr" to Triple("ihr", "ona / onun", "Zamir"), "ihre" to Triple("ihre", "onun", "Zamir"), "ihren" to Triple("ihren", "onun", "Zamir"),
+        "ihm" to Triple("ihm", "ona", "Zamir"), "seine" to Triple("seine", "onun", "Zamir"), "seinen" to Triple("seinen", "onun", "Zamir"),
+        "sich" to Triple("sich", "kendini / kendisine", "Zamir"), "alle" to Triple("alle", "hepsi", "Zamir"),
         "heute" to Triple("heute", "bugün", "Zarf"), "gestern" to Triple("gestern", "dün", "Zarf"), "morgen" to Triple("morgen", "yarın", "Zarf"),
         "morgens" to Triple("morgens", "sabahları", "Zarf"), "abends" to Triple("abends", "akşamları", "Zarf"), "dann" to Triple("dann", "sonra", "Zarf"),
         "danach" to Triple("danach", "ondan sonra", "Zarf"), "später" to Triple("später", "daha sonra", "Zarf"), "zuerst" to Triple("zuerst", "önce", "Zarf"),
@@ -171,9 +305,11 @@ internal object ExtendedLessonFactory {
         "schon" to Triple("schon", "zaten / çoktan", "Zarf"), "wieder" to Triple("wieder", "tekrar", "Zarf"), "zusammen" to Triple("zusammen", "birlikte", "Zarf"),
         "sehr" to Triple("sehr", "çok", "Zarf"), "etwas" to Triple("etwas", "biraz / bir şey", "Zamir"), "viel" to Triple("viel", "çok", "Belirleyici"),
         "viele" to Triple("viele", "birçok", "Belirleyici"), "einige" to Triple("einige", "bazı", "Belirleyici"), "ist" to Triple("sein", "olmak", "Fiil"),
-        "sind" to Triple("sein", "olmak", "Fiil"), "hat" to Triple("haben", "sahip olmak / var", "Fiil"), "haben" to Triple("haben", "sahip olmak", "Fiil"),
-        "wird" to Triple("werden", "olmak", "Fiil"), "kann" to Triple("können", "-ebilmek", "Fiil"), "muss" to Triple("müssen", "zorunda olmak", "Fiil"),
-        "soll" to Triple("sollen", "-meli / -malı", "Fiil"), "möchte" to Triple("möchten", "istemek", "Fiil"), "will" to Triple("wollen", "istemek", "Fiil"),
-        "nicht" to Triple("nicht", "değil / -me", "Parçacık"), "kein" to Triple("kein", "hiç / yok", "Belirleyici"), "keine" to Triple("keine", "hiç / yok", "Belirleyici")
+        "sind" to Triple("sein", "olmak", "Fiil"), "war" to Triple("sein", "idi", "Fiil"), "hat" to Triple("haben", "sahip olmak / var", "Fiil"),
+        "haben" to Triple("haben", "sahip olmak", "Fiil"), "wird" to Triple("werden", "olmak", "Fiil"), "werden" to Triple("werden", "olmak", "Fiil"),
+        "kann" to Triple("können", "-ebilmek", "Fiil"), "muss" to Triple("müssen", "zorunda olmak", "Fiil"), "müssen" to Triple("müssen", "zorunda olmak", "Fiil"),
+        "soll" to Triple("sollen", "-meli / -malı", "Fiil"), "sollte" to Triple("sollen", "-meli / -malı", "Fiil"), "möchte" to Triple("möchten", "istemek", "Fiil"),
+        "will" to Triple("wollen", "istemek", "Fiil"), "nicht" to Triple("nicht", "değil / -me", "Parçacık"),
+        "kein" to Triple("kein", "hiç / yok", "Belirleyici"), "keine" to Triple("keine", "hiç / yok", "Belirleyici")
     )
 }
