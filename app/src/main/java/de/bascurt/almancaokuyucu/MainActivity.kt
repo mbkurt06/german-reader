@@ -35,7 +35,7 @@ private val Dark = Color(0xFF102F3C)
 private val SoftBg = Color(0xFFF4F7F8)
 private val Success = Color(0xFF16845B)
 
-private enum class AppPage { HOME, MY_WORDS, STUDY_MENU, STUDY_MEANING, STUDY_FILL, PROFILE, READ_STORIES, STATS, SETTINGS, ABOUT }
+private enum class AppPage { HOME, MY_WORDS, STUDY_MENU, STUDY_DE_TR, STUDY_TR_DE, STUDY_FILL, PROFILE, READ_STORIES, STATS, SETTINGS, ABOUT }
 private data class FillBlankCase(val lexeme: Lexeme, val sentence: String, val answer: String)
 
 class MainActivity : ComponentActivity() {
@@ -51,6 +51,7 @@ private fun GermanReaderApp() {
     val savedStore = remember { SavedLexemeStore(context) }
     val userStore = remember { UserPreferencesStore(context) }
     val canonical = remember { SampleLessons.all.flatMap { it.lexemes }.associateBy { it.id } }
+    val adaptiveCandidates = remember { SampleLessons.all.flatMap { it.quizItems }.distinctBy { it.id } }
     var saved by remember {
         val refreshed = savedStore.load().map { canonical[it.id] ?: it }
         savedStore.save(refreshed)
@@ -82,9 +83,19 @@ private fun GermanReaderApp() {
         completedLessonIds = userStore.readLessonIds()
     }
 
-    fun recordAnswer(correct: Boolean) {
+    fun recordAnswer(item: Lexeme, correct: Boolean) {
         userStore.recordAnswer(correct)
+        userStore.recordWordAnswer(item.id, correct)
         stats = userStore.loadStats()
+    }
+
+    fun adaptiveStudySet(source: List<Lexeme> = emptyList()): List<Lexeme> {
+        val pool = if (source.isNotEmpty()) {
+            source
+        } else {
+            (saved + adaptiveCandidates).distinctBy { it.id }
+        }
+        return userStore.selectStudyItems(pool, 10)
     }
 
     fun fullReset() {
@@ -116,12 +127,13 @@ private fun GermanReaderApp() {
                     onComplete = { completeLesson(currentLesson!!) },
                     onHome = { currentLesson = null }
                 )
-                page == AppPage.STUDY_MEANING -> MeaningStudyScreen(studyItems, { page = AppPage.STUDY_MENU }, ::recordAnswer)
+                page == AppPage.STUDY_DE_TR -> MeaningStudyScreen(studyItems, germanToTurkish = true, { page = AppPage.STUDY_MENU }, ::recordAnswer)
+                page == AppPage.STUDY_TR_DE -> MeaningStudyScreen(studyItems, germanToTurkish = false, { page = AppPage.STUDY_MENU }, ::recordAnswer)
                 page == AppPage.STUDY_FILL -> FillBlankStudyScreen(studyItems, SampleLessons.all, { page = AppPage.STUDY_MENU }, ::recordAnswer)
                 else -> MainShell(
                     page = page,
                     onPage = { target ->
-                        if (target == AppPage.STUDY_MENU && studyItems.isEmpty()) studyItems = saved
+                        if (target == AppPage.STUDY_MENU) studyItems = adaptiveStudySet()
                         page = target
                     },
                     preferences = prefs,
@@ -134,7 +146,7 @@ private fun GermanReaderApp() {
                     onRemove = ::toggle,
                     studyItems = studyItems,
                     onStudyItems = {
-                        studyItems = it
+                        studyItems = adaptiveStudySet(it)
                         userStore.recordStudySession()
                         stats = userStore.loadStats()
                         page = AppPage.STUDY_MENU
@@ -217,9 +229,9 @@ private fun MainShell(
         ) { padding ->
             Box(Modifier.fillMaxSize().padding(padding)) {
                 when (page) {
-                    AppPage.HOME -> ModernHomeScreen(lessons, saved, completedLessonIds, preferences, onLesson, { onPage(AppPage.MY_WORDS) })
+                    AppPage.HOME -> ModernHomeScreen(lessons, saved, completedLessonIds, preferences, onLesson)
                     AppPage.MY_WORDS -> MyWordsScreen(lessons, saved, onRemove, onStudyItems)
-                    AppPage.STUDY_MENU -> StudyMenuScreen(if (studyItems.isEmpty()) saved else studyItems, onChooseStudy)
+                    AppPage.STUDY_MENU -> StudyMenuScreen(studyItems, onChooseStudy)
                     AppPage.PROFILE -> ProfileScreen(preferences, onPreferences, saved.size, completedLessonIds.size, stats)
                     AppPage.READ_STORIES -> ReadStoriesScreen(lessons, completedLessonIds, saved, onLesson)
                     AppPage.STATS -> StatsScreen(saved, completedLessonIds, stats)
@@ -250,7 +262,7 @@ private fun DrawerItem(icon: String, label: String, selected: Boolean, onClick: 
 }
 
 @Composable
-private fun ModernHomeScreen(lessons: List<ReaderLesson>, saved: List<Lexeme>, completedIds: Set<String>, prefs: UserPreferences, onLesson: (ReaderLesson) -> Unit, onMyWords: () -> Unit) {
+private fun ModernHomeScreen(lessons: List<ReaderLesson>, saved: List<Lexeme>, completedIds: Set<String>, prefs: UserPreferences, onLesson: (ReaderLesson) -> Unit) {
     val continueLesson = lessons.firstOrNull { it.id !in completedIds } ?: lessons.firstOrNull()
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = Dark), modifier = Modifier.fillMaxWidth()) {
@@ -280,10 +292,7 @@ private fun ModernHomeScreen(lessons: List<ReaderLesson>, saved: List<Lexeme>, c
                 }
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Hikâyeler", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            TextButton(onClick = onMyWords) { Text("Kelimelerim") }
-        }
+        Text("Hikâyeler", fontSize = 22.sp, fontWeight = FontWeight.Bold)
         lessons.forEach { lesson ->
             ElevatedCard(Modifier.fillMaxWidth().clickable { onLesson(lesson) }, shape = RoundedCornerShape(22.dp)) {
                 Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -537,12 +546,14 @@ private fun MyWordsScreen(lessons: List<ReaderLesson>, saved: List<Lexeme>, onRe
         Card(colors = CardDefaults.cardColors(containerColor = Turquoise.copy(alpha = .12f)), shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp)) {
                 Text("Kelime Çalışması", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                Text("${items.size} kelime / ifade hazır", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Bu tur için ${items.size} kelime hazır", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(6.dp))
+                Text("Sistem yeni ve zorlandığın kelimelere öncelik verir; doğru bildiklerini zamanla daha seyrek sorar.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
-        StudyModeCard("1. Anlam Testi", "Almanca → Türkçe ve Türkçe → Almanca soruları karışık çoktan seçmeli olarak çöz.") { onChoose(AppPage.STUDY_MEANING) }
-        StudyModeCard("2. Boşluk Doldurma", "Hikâyedeki gerçek cümlede eksik kelime veya ifadeyi seçeneklerden bul.") { onChoose(AppPage.STUDY_FILL) }
-        if (items.isEmpty()) Text("Önce Kelimelerim bölümünden çalışmak istediğin kelimeleri seçebilirsin.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        StudyModeCard("1. Almanca → Türkçe", "Almanca kelime veya ifadeyi gör, doğru Türkçe anlamını seçeneklerden bul.") { onChoose(AppPage.STUDY_DE_TR) }
+        StudyModeCard("2. Türkçe → Almanca", "Türkçe anlamı gör, doğru Almanca kelime veya ifadeyi seçeneklerden bul.") { onChoose(AppPage.STUDY_TR_DE) }
+        StudyModeCard("3. Boşluk Doldurma", "Hikâyedeki gerçek cümlede eksik kelime veya ifadeyi seçeneklerden bul.") { onChoose(AppPage.STUDY_FILL) }
     }
 }
 
@@ -558,47 +569,53 @@ private fun MyWordsScreen(lessons: List<ReaderLesson>, saved: List<Lexeme>, onRe
     }
 }
 
-@Composable private fun MeaningStudyScreen(items: List<Lexeme>, onBack: () -> Unit, onAnswered: (Boolean) -> Unit) {
+@Composable
+private fun MeaningStudyScreen(
+    items: List<Lexeme>,
+    germanToTurkish: Boolean,
+    onBack: () -> Unit,
+    onAnswered: (Lexeme, Boolean) -> Unit
+) {
     if (items.isEmpty()) { EmptyStudyScreen(onBack); return }
-    var index by remember { mutableIntStateOf(0) }
-    var selectedAnswer by remember(index) { mutableStateOf<String?>(null) }
-    var correctCount by remember { mutableIntStateOf(0) }
+    var index by remember(germanToTurkish) { mutableIntStateOf(0) }
+    var selectedAnswer by remember(index, germanToTurkish) { mutableStateOf<String?>(null) }
+    var correctCount by remember(germanToTurkish) { mutableIntStateOf(0) }
     val item = items[index % items.size]
-    val askGerman = index % 2 == 0
-    val correct = if (askGerman) item.base else item.meaning
-    val options = remember(index, items) { (items.filter { it.id != item.id }.shuffled().map { if (askGerman) it.base else it.meaning }.distinct().take(3) + correct).distinct().shuffled() }
+    val correct = if (germanToTurkish) item.meaning else item.base
+    val options = remember(index, items, germanToTurkish) {
+        (items.filter { it.id != item.id }.shuffled().map { if (germanToTurkish) it.meaning else it.base }.distinct().take(3) + correct).distinct().shuffled()
+    }
 
-    StudyHeader("Anlam Testi", index, items.size, correctCount, onBack) {
-        Text(if (askGerman) "Türkçe → Almanca" else "Almanca → Türkçe", color = Turquoise, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(5.dp))
-        Text(if (askGerman) "Bu anlamın Almancası hangisi?" else "Bu Almanca ifade ne anlama geliyor?", color = MaterialTheme.colorScheme.onSurfaceVariant)
+    StudyHeader(if (germanToTurkish) "Almanca → Türkçe" else "Türkçe → Almanca", index, items.size, correctCount, onBack) {
+        Text(if (germanToTurkish) "Bu Almanca ifade ne anlama geliyor?" else "Bu Türkçe anlamın Almancası hangisi?", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(10.dp))
         ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-            Text(if (askGerman) item.meaning else wordDisplayTitle(item), Modifier.padding(20.dp), fontSize = 27.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            Text(if (germanToTurkish) wordDisplayTitle(item) else item.meaning, Modifier.padding(20.dp), fontSize = 27.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
         }
         Spacer(Modifier.height(18.dp))
         options.forEach { option ->
             StudyAnswerButton(option, selectedAnswer, correct) {
                 if (selectedAnswer == null) {
                     selectedAnswer = option
-                    val ok = option == correct
+                    val ok = normalizeAnswer(option) == normalizeAnswer(correct)
                     if (ok) correctCount++
-                    onAnswered(ok)
+                    onAnswered(item, ok)
                 }
             }
             Spacer(Modifier.height(10.dp))
         }
         selectedAnswer?.let {
-            Text(if (it == correct) "Doğru ✓" else "Doğru cevap: $correct", color = if (it == correct) Success else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+            val ok = normalizeAnswer(it) == normalizeAnswer(correct)
+            Text(if (ok) "Doğru ✓" else "Doğru cevap: $correct", color = if (ok) Success else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(12.dp))
             Button(onClick = { index = (index + 1) % items.size }, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) { Text("Sonraki") }
         }
     }
 }
 
-@Composable private fun FillBlankStudyScreen(items: List<Lexeme>, lessons: List<ReaderLesson>, onBack: () -> Unit, onAnswered: (Boolean) -> Unit) {
+@Composable private fun FillBlankStudyScreen(items: List<Lexeme>, lessons: List<ReaderLesson>, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
     val cases = remember(items, lessons) { buildFillBlankCases(items, lessons) }
-    if (cases.isEmpty()) { EmptyStudyScreen(onBack, "Seçilen kelimeler için hikâye içinde boşluk doldurma cümlesi bulunamadı."); return }
+    if (cases.isEmpty()) { EmptyStudyScreen(onBack, "Bu çalışma turundaki kelimeler için hikâye içinde boşluk doldurma cümlesi bulunamadı."); return }
     var index by remember { mutableIntStateOf(0) }
     var selectedAnswer by remember(index) { mutableStateOf<String?>(null) }
     var correctCount by remember { mutableIntStateOf(0) }
@@ -621,7 +638,7 @@ private fun MyWordsScreen(lessons: List<ReaderLesson>, saved: List<Lexeme>, onRe
                     selectedAnswer = option
                     val ok = normalizeAnswer(option) == normalizeAnswer(case.answer)
                     if (ok) correctCount++
-                    onAnswered(ok)
+                    onAnswered(case.lexeme, ok)
                 }
             }
             Spacer(Modifier.height(10.dp))
@@ -677,7 +694,7 @@ private fun MyWordsScreen(lessons: List<ReaderLesson>, saved: List<Lexeme>, onRe
     }
 }
 
-@Composable private fun EmptyStudyScreen(onBack: () -> Unit, message: String = "Çalışmak için kelime seçilmedi.") {
+@Composable private fun EmptyStudyScreen(onBack: () -> Unit, message: String = "Çalışmak için uygun kelime bulunamadı.") {
     Column(Modifier.fillMaxSize()) {
         SectionHeader("Kelime Çalışması", onBack)
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(message, modifier = Modifier.padding(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -803,7 +820,7 @@ private fun SettingsScreen(prefs: UserPreferences, onSave: (UserPreferences) -> 
         AlertDialog(
             onDismissRequest = { confirmReset = false },
             title = { Text("Uygulama sıfırlansın mı?") },
-            text = { Text("Kaydedilen kelimeler, tamamlanan hikâyeler, çalışma istatistikleri, profil ve ayarlar silinecek. Bu işlem geri alınamaz.") },
+            text = { Text("Kaydedilen kelimeler, tamamlanan hikâyeler, çalışma istatistikleri, kelime öğrenme geçmişi, profil ve ayarlar silinecek. Bu işlem geri alınamaz.") },
             confirmButton = { TextButton(onClick = { onFullReset(); confirmReset = false }) { Text("Tamamen sıfırla") } },
             dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Vazgeç") } }
         )
