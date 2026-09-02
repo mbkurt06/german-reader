@@ -24,7 +24,8 @@ import de.bascurt.almancaokuyucu.model.*
 
 private val Turquoise = Color(0xFF1FA7A5)
 private val Dark = Color(0xFF102F3C)
-private enum class AppPage { HOME, MY_WORDS }
+private enum class AppPage { HOME, MY_WORDS, STUDY_MENU, STUDY_MEANING, STUDY_FILL }
+private data class FillBlankCase(val lexeme: Lexeme, val sentence: String, val answer: String)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,13 +45,25 @@ class MainActivity : ComponentActivity() {
     }
     var currentLesson by remember { mutableStateOf<ReaderLesson?>(null) }
     var page by remember { mutableStateOf(AppPage.HOME) }
+    var studyItems by remember { mutableStateOf<List<Lexeme>>(emptyList()) }
+
     fun toggle(item: Lexeme) {
         saved = if (saved.any { it.id == item.id }) saved.filterNot { it.id == item.id } else saved + item
         store.save(saved)
     }
+
     when {
         currentLesson != null -> ReaderScreen(currentLesson!!, saved, ::toggle) { currentLesson = null }
-        page == AppPage.MY_WORDS -> MyWordsScreen(SampleLessons.all, saved, ::toggle) { page = AppPage.HOME }
+        page == AppPage.MY_WORDS -> MyWordsScreen(
+            lessons = SampleLessons.all,
+            saved = saved,
+            onRemove = ::toggle,
+            onBack = { page = AppPage.HOME },
+            onStudy = { items -> studyItems = items; page = AppPage.STUDY_MENU }
+        )
+        page == AppPage.STUDY_MENU -> StudyMenuScreen(studyItems, { page = AppPage.MY_WORDS }, { page = it })
+        page == AppPage.STUDY_MEANING -> MeaningStudyScreen(studyItems) { page = AppPage.STUDY_MENU }
+        page == AppPage.STUDY_FILL -> FillBlankStudyScreen(studyItems, SampleLessons.all) { page = AppPage.STUDY_MENU }
         else -> HomeScreen(SampleLessons.all, { currentLesson = it }) { page = AppPage.MY_WORDS }
     }
 }
@@ -116,40 +129,19 @@ class MainActivity : ComponentActivity() {
 
 @Composable private fun MorphologyDetails(item: Lexeme) {
     when (item.wordClass) {
-        "Fiil" -> {
-            item.infinitive?.let { DetailLine("Mastar", it) }
-            item.thirdPerson?.let { DetailLine("3. tekil şahıs", it) }
-            item.preterite?.let { DetailLine("Präteritum", it) }
-            item.perfect?.let { DetailLine("Perfekt", it) }
-        }
-        "İsim" -> {
-            item.article?.let { DetailLine("Artikel", it) }
-            item.plural?.let { DetailLine("Çoğul", it) }
-            item.accusativeNote?.let { DetailLine("Akkusativ", it) }
-        }
-        "Sıfat" -> {
-            item.positive?.let { DetailLine("Yalın hâl", it) }
-            item.comparative?.let { DetailLine("Komparativ", it) }
-            item.superlative?.let { DetailLine("Superlativ", it) }
-        }
+        "Fiil" -> { item.infinitive?.let { DetailLine("Mastar", it) }; item.thirdPerson?.let { DetailLine("3. tekil şahıs", it) }; item.preterite?.let { DetailLine("Präteritum", it) }; item.perfect?.let { DetailLine("Perfekt", it) } }
+        "İsim" -> { item.article?.let { DetailLine("Artikel", it) }; item.plural?.let { DetailLine("Çoğul", it) }; item.accusativeNote?.let { DetailLine("Akkusativ", it) } }
+        "Sıfat" -> { item.positive?.let { DetailLine("Yalın hâl", it) }; item.comparative?.let { DetailLine("Komparativ", it) }; item.superlative?.let { DetailLine("Superlativ", it) } }
     }
 }
 
-@Composable private fun DetailLine(label: String, value: String) {
-    Row(Modifier.padding(top = 4.dp)) { Text("$label: ", color = Color(0xFF9ED7D6), fontWeight = FontWeight.SemiBold, fontSize = 14.sp); Text(value, color = Color.White, fontSize = 14.sp) }
-}
+@Composable private fun DetailLine(label: String, value: String) { Row(Modifier.padding(top = 4.dp)) { Text("$label: ", color = Color(0xFF9ED7D6), fontWeight = FontWeight.SemiBold, fontSize = 14.sp); Text(value, color = Color.White, fontSize = 14.sp) } }
 
-@Composable private fun SectionHeader(title: String, onHome: () -> Unit) {
-    Column(Modifier.fillMaxWidth().height(112.dp).background(Dark).padding(horizontal = 22.dp, vertical = 16.dp), verticalArrangement = Arrangement.SpaceBetween) {
-        Text("‹ Metinler", color = Color.White, fontSize = 17.sp, modifier = Modifier.clickable(onClick = onHome).padding(4.dp)); Text(title, color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-    }
-}
+@Composable private fun SectionHeader(title: String, onHome: () -> Unit) { Column(Modifier.fillMaxWidth().height(112.dp).background(Dark).padding(horizontal = 22.dp, vertical = 16.dp), verticalArrangement = Arrangement.SpaceBetween) { Text("‹ Metinler", color = Color.White, fontSize = 17.sp, modifier = Modifier.clickable(onClick = onHome).padding(4.dp)); Text(title, color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold) } }
 
 @Composable private fun ReaderTabs(active: ReaderTab, onSelect: (ReaderTab) -> Unit) {
     val tabs = listOf(ReaderTab.STORY to "Hikâye", ReaderTab.QUIZ to "Sınav", ReaderTab.WORDS to "Kelimeler", ReaderTab.GRAMMAR to "Gramer")
-    Row(Modifier.fillMaxWidth().padding(horizontal = 7.dp, vertical = 9.dp), horizontalArrangement = Arrangement.SpaceAround) {
-        tabs.forEach { (tab, label) -> Surface(color = if (tab == active) Turquoise else Color.Transparent, shape = RoundedCornerShape(20.dp), modifier = Modifier.clickable { onSelect(tab) }) { Text(label, Modifier.padding(horizontal = 11.dp, vertical = 7.dp), color = if (tab == active) Color.White else Color.Black, fontSize = 17.sp) } }
-    }
+    Row(Modifier.fillMaxWidth().padding(horizontal = 7.dp, vertical = 9.dp), horizontalArrangement = Arrangement.SpaceAround) { tabs.forEach { (tab, label) -> Surface(color = if (tab == active) Turquoise else Color.Transparent, shape = RoundedCornerShape(20.dp), modifier = Modifier.clickable { onSelect(tab) }) { Text(label, Modifier.padding(horizontal = 11.dp, vertical = 7.dp), color = if (tab == active) Color.White else Color.Black, fontSize = 17.sp) } } }
     HorizontalDivider(color = Color(0xFFE8E8E8))
 }
 
@@ -179,28 +171,31 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable private fun LessonWordsScreen(lesson: ReaderLesson, saved: List<Lexeme>, onRemove: (Lexeme) -> Unit) {
-    val items = saved.filter { savedItem -> lesson.lexemes.any { it.id == savedItem.id } }
-    WordCards(items, onRemove, "Bu hikâyeden henüz kelime kaydetmedin.")
-}
+@Composable private fun LessonWordsScreen(lesson: ReaderLesson, saved: List<Lexeme>, onRemove: (Lexeme) -> Unit) { val items = saved.filter { savedItem -> lesson.lexemes.any { it.id == savedItem.id } }; WordCards(items, onRemove, "Bu hikâyeden henüz kelime kaydetmedin.") }
 
-@Composable private fun MyWordsScreen(lessons: List<ReaderLesson>, saved: List<Lexeme>, onRemove: (Lexeme) -> Unit, onBack: () -> Unit) {
-    var lessonFilter by remember { mutableStateOf<String?>(null) }; var typeFilter by remember { mutableStateOf<String?>(null) }; var selectedIds by remember { mutableStateOf(setOf<String>()) }
+@Composable private fun MyWordsScreen(lessons: List<ReaderLesson>, saved: List<Lexeme>, onRemove: (Lexeme) -> Unit, onBack: () -> Unit, onStudy: (List<Lexeme>) -> Unit) {
+    var lessonFilters by remember { mutableStateOf(setOf<String>()) }
+    var typeFilters by remember { mutableStateOf(setOf<String>()) }
+    var selectedIds by remember { mutableStateOf(setOf<String>()) }
     val lessonByLexeme = remember(lessons) { lessons.flatMap { lesson -> lesson.lexemes.map { it.id to lesson } }.toMap() }
     val savedLessonIds = saved.mapNotNull { lessonByLexeme[it.id]?.id }.toSet()
     val availableLessons = lessons.filter { it.id in savedLessonIds }
     val wordTypes = listOf("Fiil", "İsim", "Sıfat", "Zarf", "Edat", "Bağlaç", "Zamir", "Artikel", "Belirleyici", "Parçacık", "Özel isim", "Diğer")
-    val filtered = saved.filter { item -> (lessonFilter == null || lessonByLexeme[item.id]?.id == lessonFilter) && (typeFilter == null || item.wordClass == typeFilter) }
+    val filtered = saved.filter { item ->
+        (lessonFilters.isEmpty() || lessonByLexeme[item.id]?.id in lessonFilters) &&
+            (typeFilters.isEmpty() || item.wordClass in typeFilters)
+    }
+
     Column(Modifier.fillMaxSize().background(Color(0xFFF7FAFA))) {
         Column(Modifier.fillMaxWidth().background(Dark).padding(20.dp)) { Text("‹ Ana sayfa", color = Color.White, modifier = Modifier.clickable(onClick = onBack).padding(4.dp)); Spacer(Modifier.height(12.dp)); Text("Kelimelerim", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold); Text("${saved.size} kayıtlı kelime / ifade", color = Color(0xFFD5E4E8)) }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            FilterDropdown("Hikâye", lessonFilter, availableLessons.map { it.id to it.title }) { lessonFilter = it }
-            FilterDropdown("Kelime türü", typeFilter, wordTypes.map { it to it }) { typeFilter = it }
+            MultiFilterDropdown("Hikâye", lessonFilters, availableLessons.map { it.id to it.title }) { lessonFilters = it }
+            MultiFilterDropdown("Kelime türü", typeFilters, wordTypes.map { it to it }) { typeFilters = it }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = { selectedIds = if (filtered.isNotEmpty() && filtered.all { it.id in selectedIds }) selectedIds - filtered.map { it.id }.toSet() else selectedIds + filtered.map { it.id } }) { Text(if (filtered.isNotEmpty() && filtered.all { it.id in selectedIds }) "Seçimi kaldır" else "Tümünü seç") }
                 Spacer(Modifier.weight(1f)); Text("${selectedIds.size} seçili")
             }
-            Button(onClick = {}, enabled = selectedIds.isNotEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Seçilenlerle çalış (${selectedIds.size})") }
+            Button(onClick = { onStudy(saved.filter { it.id in selectedIds }) }, enabled = selectedIds.isNotEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Seçilenlerle çalış (${selectedIds.size})") }
             filtered.asReversed().forEach { item -> SelectableWordCard(item, item.id in selectedIds, { selectedIds = if (item.id in selectedIds) selectedIds - item.id else selectedIds + item.id }, { onRemove(item); selectedIds = selectedIds - item.id }, lessonByLexeme[item.id]?.title) }
             if (filtered.isEmpty()) Text("Bu filtrelerde kayıtlı kelime yok.", color = Color.Gray, modifier = Modifier.padding(20.dp))
             Spacer(Modifier.height(40.dp))
@@ -208,20 +203,148 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable private fun FilterDropdown(label: String, selectedId: String?, options: List<Pair<String, String>>, onSelect: (String?) -> Unit) {
+@Composable private fun MultiFilterDropdown(label: String, selectedIds: Set<String>, options: List<Pair<String, String>>, onChange: (Set<String>) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedLabel = options.firstOrNull { it.first == selectedId }?.second ?: "Tümü"
+    val summary = when {
+        selectedIds.isEmpty() -> "Tümü"
+        selectedIds.size == 1 -> options.firstOrNull { it.first in selectedIds }?.second ?: "1 seçili"
+        else -> "${selectedIds.size} seçili"
+    }
     Box(Modifier.fillMaxWidth()) {
         OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.Start) { Text(label, fontSize = 12.sp, color = Color.Gray); Text(selectedLabel, fontSize = 16.sp) }
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.Start) { Text(label, fontSize = 12.sp, color = Color.Gray); Text(summary, fontSize = 16.sp) }
             Text("▾", fontSize = 20.sp)
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.fillMaxWidth(0.9f)) {
-            DropdownMenuItem(text = { Text("Tümü") }, leadingContent = { Checkbox(checked = selectedId == null, onCheckedChange = null) }, onClick = { onSelect(null); expanded = false })
-            options.forEach { (id, title) -> DropdownMenuItem(text = { Text(title) }, leadingContent = { Checkbox(checked = selectedId == id, onCheckedChange = null) }, onClick = { onSelect(id); expanded = false }) }
+            DropdownMenuItem(
+                text = { Text("Tümü") },
+                leadingIcon = { Checkbox(checked = selectedIds.isEmpty(), onCheckedChange = null) },
+                onClick = { onChange(emptySet()) }
+            )
+            options.forEach { (id, title) ->
+                DropdownMenuItem(
+                    text = { Text(title) },
+                    leadingIcon = { Checkbox(checked = id in selectedIds, onCheckedChange = null) },
+                    onClick = { onChange(if (id in selectedIds) selectedIds - id else selectedIds + id) }
+                )
+            }
         }
     }
 }
+
+@Composable private fun StudyMenuScreen(items: List<Lexeme>, onBack: () -> Unit, onChoose: (AppPage) -> Unit) {
+    Column(Modifier.fillMaxSize().background(Color(0xFFF7FAFA))) {
+        Column(Modifier.fillMaxWidth().background(Dark).padding(20.dp)) {
+            Text("‹ Kelimelerim", color = Color.White, modifier = Modifier.clickable(onClick = onBack).padding(4.dp))
+            Spacer(Modifier.height(12.dp)); Text("Kelime Çalışması", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text("${items.size} kelime / ifade ile çalışacaksın", color = Color(0xFFD5E4E8))
+        }
+        Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            StudyModeCard("Türkçe ↔ Almanca", "Kelimenin veya ifadenin anlamını iki yönde soran çoktan seçmeli çalışma.") { onChoose(AppPage.STUDY_MEANING) }
+            StudyModeCard("Boşluk Doldurma", "Seçtiğin kelime veya ifadeyi hikâyedeki cümle içinde tamamla.") { onChoose(AppPage.STUDY_FILL) }
+            Text("Daha sonra buraya yeni çalışma yöntemleri ekleyebiliriz.", color = Color.Gray, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+        }
+    }
+}
+
+@Composable private fun StudyModeCard(title: String, description: String, onClick: () -> Unit) {
+    Card(Modifier.fillMaxWidth().clickable(onClick = onClick), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
+        Column(Modifier.padding(18.dp)) { Text(title, fontSize = 21.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.height(6.dp)); Text(description, color = Color(0xFF5E6D73)); Spacer(Modifier.height(8.dp)); Text("Başla  ›", color = Turquoise, fontWeight = FontWeight.Bold) }
+    }
+}
+
+@Composable private fun MeaningStudyScreen(items: List<Lexeme>, onBack: () -> Unit) {
+    if (items.isEmpty()) { EmptyStudyScreen(onBack); return }
+    var index by remember { mutableIntStateOf(0) }
+    var selectedAnswer by remember(index) { mutableStateOf<String?>(null) }
+    var correctCount by remember { mutableIntStateOf(0) }
+    val item = items[index % items.size]
+    val askGerman = index % 2 == 0
+    val correct = if (askGerman) item.base else item.meaning
+    val options = remember(index, items) {
+        val distractors = items.filter { it.id != item.id }.shuffled().map { if (askGerman) it.base else it.meaning }.distinct().take(3)
+        (distractors + correct).distinct().shuffled()
+    }
+    StudyHeader("Türkçe ↔ Almanca", index, items.size, correctCount, onBack) {
+        Text(if (askGerman) "Bu Türkçe anlamın Almancası hangisi?" else "Bu Almanca ifade ne anlama geliyor?", color = Color.Gray)
+        Spacer(Modifier.height(8.dp)); Text(if (askGerman) item.meaning else item.base, fontSize = 27.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(18.dp))
+        options.forEach { option ->
+            OutlinedButton(onClick = {
+                if (selectedAnswer == null) {
+                    selectedAnswer = option
+                    if (option == correct) correctCount++
+                }
+            }, modifier = Modifier.fillMaxWidth()) { Text(option, Modifier.fillMaxWidth(), fontSize = 17.sp) }
+            Spacer(Modifier.height(8.dp))
+        }
+        selectedAnswer?.let {
+            Text(if (it == correct) "Doğru ✓" else "Doğru cevap: $correct", color = if (it == correct) Color(0xFF16845B) else Color(0xFFC34232), fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(12.dp)); Button(onClick = { index = (index + 1) % items.size }, modifier = Modifier.align(Alignment.End)) { Text("Sonraki") }
+        }
+    }
+}
+
+@Composable private fun FillBlankStudyScreen(items: List<Lexeme>, lessons: List<ReaderLesson>, onBack: () -> Unit) {
+    val cases = remember(items, lessons) { buildFillBlankCases(items, lessons) }
+    if (cases.isEmpty()) { EmptyStudyScreen(onBack, "Seçilen kelimeler için hikâye içinde boşluk doldurma cümlesi bulunamadı."); return }
+    var index by remember { mutableIntStateOf(0) }
+    var input by remember(index) { mutableStateOf("") }
+    var checked by remember(index) { mutableStateOf(false) }
+    var correctCount by remember { mutableIntStateOf(0) }
+    val case = cases[index % cases.size]
+    val isCorrect = normalizeAnswer(input) == normalizeAnswer(case.answer)
+    StudyHeader("Boşluk Doldurma", index, cases.size, correctCount, onBack) {
+        Text("Boşluğa hikâyedeki doğru Almanca kelime veya ifadeyi yaz.", color = Color.Gray)
+        Spacer(Modifier.height(14.dp)); Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFF2F7F7))) { Text(case.sentence, Modifier.padding(18.dp), fontSize = 21.sp, lineHeight = 30.sp) }
+        Spacer(Modifier.height(16.dp)); OutlinedTextField(value = input, onValueChange = { if (!checked) input = it }, label = { Text("Cevabın") }, modifier = Modifier.fillMaxWidth(), singleLine = false)
+        Spacer(Modifier.height(12.dp))
+        if (!checked) Button(onClick = { checked = true; if (isCorrect) correctCount++ }, enabled = input.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Kontrol et") }
+        else {
+            Text(if (isCorrect) "Doğru ✓" else "Doğru cevap: ${case.answer}", color = if (isCorrect) Color(0xFF16845B) else Color(0xFFC34232), fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(10.dp)); Text("${case.lexeme.base} — ${case.lexeme.meaning}", color = Color(0xFF53666D))
+            Spacer(Modifier.height(12.dp)); Button(onClick = { index = (index + 1) % cases.size }, modifier = Modifier.align(Alignment.End)) { Text("Sonraki") }
+        }
+    }
+}
+
+@Composable private fun StudyHeader(title: String, index: Int, total: Int, correct: Int, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.fillMaxSize().background(Color.White)) {
+        Column(Modifier.fillMaxWidth().background(Dark).padding(20.dp)) {
+            Text("‹ Çalışma seçenekleri", color = Color.White, modifier = Modifier.clickable(onClick = onBack).padding(4.dp))
+            Spacer(Modifier.height(10.dp)); Text(title, color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+            Text("Soru ${index + 1} / $total   •   Doğru: $correct", color = Color(0xFFD5E4E8))
+        }
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(20.dp), content = content)
+    }
+}
+
+@Composable private fun EmptyStudyScreen(onBack: () -> Unit, message: String = "Çalışmak için kelime seçilmedi.") {
+    Column(Modifier.fillMaxSize()) { SectionHeader("Kelime Çalışması", onBack); Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(message, color = Color.Gray, modifier = Modifier.padding(24.dp)) } }
+}
+
+private fun buildFillBlankCases(items: List<Lexeme>, lessons: List<ReaderLesson>): List<FillBlankCase> {
+    val ids = items.map { it.id }.toSet()
+    val itemById = items.associateBy { it.id }
+    return lessons.flatMap { lesson ->
+        lesson.sentences.mapNotNull { sentence ->
+            val targetId = sentence.firstOrNull { it.lexeme.id in ids }?.lexeme?.id ?: return@mapNotNull null
+            val target = itemById[targetId] ?: return@mapNotNull null
+            val answerTokens = sentence.filter { it.lexeme.id == targetId }.map { it.text.trimEnd('.', ',', ':', ';', '!', '?') }
+            if (answerTokens.isEmpty()) return@mapNotNull null
+            val masked = sentence.joinToString(" ") { token -> if (token.lexeme.id == targetId) "_____" else token.text }
+                .replace("_____ _____", "_____")
+            FillBlankCase(target, masked, answerTokens.joinToString(" … "))
+        }
+    }.distinctBy { it.lexeme.id }
+}
+
+private fun normalizeAnswer(text: String): String = text.lowercase()
+    .replace("…", " ")
+    .replace("...", " ")
+    .replace(Regex("[.,:;!?]"), "")
+    .replace(Regex("\\s+"), " ")
+    .trim()
 
 @Composable private fun WordCards(items: List<Lexeme>, onRemove: (Lexeme) -> Unit, emptyText: String) {
     if (items.isEmpty()) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(emptyText, color = Color.Gray) }; return }
