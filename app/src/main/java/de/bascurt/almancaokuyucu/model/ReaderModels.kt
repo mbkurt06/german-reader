@@ -9,7 +9,8 @@ data class Lexeme(
     val meaning: String,
     val type: String = "Kelime",
     val grammar: String? = null,
-    val explanation: String? = null
+    val explanation: String? = null,
+    val quizEligible: Boolean = false
 )
 
 data class ReadingToken(val text: String, val lexeme: Lexeme)
@@ -26,6 +27,9 @@ data class ReaderLesson(
 
     val grammarItems: List<Lexeme>
         get() = lexemes.filter { it.type != "Kelime" && it.type != "Artikel" }
+
+    val quizItems: List<Lexeme>
+        get() = lexemes.filter { it.quizEligible }
 }
 
 enum class ReaderTab { STORY, QUIZ, WORDS, GRAMMAR }
