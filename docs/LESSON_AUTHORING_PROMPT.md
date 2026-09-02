@@ -11,6 +11,7 @@ Aşağıdaki Almanca metni Almanca Okuyucu uygulamasına ders olarak hazırla.
 - Başlık ve kısa özet oluştur.
 - Metindeki her görünen kelime dokunulabilir olmalı.
 - Kelimenin Türkçe anlamını yalnız bu cümledeki anlamına göre ver. Genel sözlük anlamlarını gereksiz yere sıralama.
+- Her kelimenin gerçek kelime türünü ayrıca belirle: Fiil, İsim, Sıfat, Zarf, Edat, Bağlaç, Zamir, Artikel/Belirleyici, Parçacık, Özel isim vb.
 
 ### 2. Öğrenme değeri yüksek kelime ve ifadeler
 - Metindeki öğrenilmesi faydalı fiilleri, isimleri, sıfatları, zarfları, bağlaçları ve özellikle sabit kelime gruplarını belirle.
@@ -26,7 +27,17 @@ Aşağıdaki Almanca metni Almanca Okuyucu uygulamasına ders olarak hazırla.
 - Örnek: `muss sich an seine neue Umgebung gewöhnen` cümlesinde `muss` seçilmemeli; grup `sich ... an ... gewöhnen` yapısının gerçek parçalarıyla sınırlı kalmalıdır.
 - Ayrılabilen fiillerde fiilin iki parçası aynı Lexeme'e bağlanmalıdır.
 
-### 4. Edatlar
+### 4. Kelime çekim bilgileri
+- Kullanıcı bir kelimeye dokunduğunda üst bilgi alanında kelime türü mutlaka görünmeli.
+- Fiillerde mastar, Präsens 3. tekil şahıs, Präteritum ve Perfekt biçimleri hazırlanmalı.
+- Örnek: `fahren → fährt → fuhr → ist gefahren`; `nehmen → nimmt → nahm → hat genommen`.
+- Fiil bir kelime grubunun parçasıysa mümkün olduğunda grubun ana fiilinin çekimleri verilmeli.
+- İsimlerde artikel ve çoğul biçimi mutlaka hazırlanmalı.
+- Zayıf eril isim gibi Akkusativ Singular'da `-n/-en` alan isimlerde bu durum ayrıca açıkça belirtilmeli. Örnek: `der Kollege → den Kollegen`.
+- Sıfatlarda yalın biçim, Komparativ ve Superlativ hazırlanmalı. Karşılaştırma biçimi doğal olarak kullanılmıyorsa boş bırakılabilir.
+- Metinde çekimli görünen kelimenin üst başlığında mümkün olduğunca temel biçim gösterilmeli: fiilde mastar, isimde tekil yalın biçim, sıfatta yalın biçim.
+
+### 5. Edatlar
 - Tek başına kullanılan her önemli edat için genel/geçiştirici açıklama yazma; o cümlede tam olarak ne yaptığını açıkla.
 - Açıklamada mümkünse şunlar bulunmalı:
   1. Cümledeki anlamı,
@@ -36,31 +47,36 @@ Aşağıdaki Almanca metni Almanca Okuyucu uygulamasına ders olarak hazırla.
 - Örnek: `nach Stuttgart` için yalnız `-e/-a` yazma; `nach`ın artikelsiz şehir adına doğru hareket/hedef bildirdiğini açıkla.
 - Sabit fiil + edat yapısındaki edatı yer/yön edatı gibi açıklama.
 
-### 5. Bağlaçlar
+### 6. Bağlaçlar
 - Bağlacın sözlük anlamının yanında o cümlede kurduğu mantıksal ilişkiyi açıkla: karşıtlık, neden, sonuç, ekleme vb.
 - Gerekiyorsa kelime dizilişi bilgisini ekle (`obwohl/dass` → çekimli fiil sonda gibi).
 
-### 6. Sınav
+### 7. Sınav
 - Sınav soruları yalnız `quizEligible = true` olarak bilinçli biçimde işaretlenen öğrenme değeri yüksek Lexeme'lerden üretilmeli.
 - Kişi adı, şehir adı, artikel, basit zamir veya anlamsız/düşük değerli token sınav sorusu olamaz.
 - Sorular hikâyedeki önemli kelime ve kelime gruplarını öğretmeyi ölçmeli.
 - Doğru cevap sürekli aynı şıkta bulunmamalı. Her soru için doğru cevap ve çeldiriciler karıştırılmalı.
 - Çeldiriciler mümkün olduğunca gerçek ve öğrenme açısından anlamlı ifadelerden seçilmeli.
 
-### 7. Kaydedilen kelimeler
+### 8. Kaydedilen kelimeler
 - Her Lexeme kimliği ders bazında benzersiz olmalı.
 - Kullanıcı yıldızladığında kelime/ifade kalıcı olarak kaydedilebilmeli.
 - Kaydın hangi hikâyeye ait olduğu Lexeme kimliği üzerinden güvenilir biçimde bulunabilmeli.
 - Hikâyenin `Kelimeler` sekmesi yalnız o hikâyeden yıldızlanan kelimeleri göstermeli.
 - Ana `Kelimelerim` sayfası bütün hikâyelerden yıldızlananları birlikte göstermeli.
+- Ana Kelimelerim sayfasındaki hikâye filtresinde yalnız kullanıcının en az bir kelime kaydettiği hikâyeler listelenmeli.
+- Hikâye ve kelime türü filtreleri açılır menü biçiminde olmalı; seçilen seçenek tik ile görünmeli.
 
-### 8. Kalite kontrol
+### 9. Kalite kontrol
 Dersi eklemeden önce kontrol et:
 - Aynı kelime grubunda yanlışlıkla modal fiil var mı?
 - Grup dışında kalması gereken kelimeler aynı Lexeme kimliğini taşıyor mu?
 - Edat açıklamaları gerçekten o cümleye özel mi?
 - Sınav hedefleri arasında kişi/şehir adı, artikel veya anlamsız kelime var mı?
 - Her önemli kelime/ifadenin Türkçe anlamı bağlama uygun mu?
+- Fiillerin mastar, 3. tekil, Präteritum ve Perfekt biçimleri doğru mu?
+- İsimlerin artikel, çoğul ve gerekiyorsa Akkusativ `-n/-en` bilgisi doğru mu?
+- Sıfatların yalın, Komparativ ve Superlativ biçimleri doğru mu?
 - Sınavda doğru cevapların şık konumları karışıyor mu?
 - Kaydedilen kelimeler doğru hikâyeyle eşleşebiliyor mu?
 
