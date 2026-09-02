@@ -5,7 +5,7 @@ import de.bascurt.almancaokuyucu.model.ReaderLesson
 import de.bascurt.almancaokuyucu.model.ReadingToken
 
 object SampleLessons {
-    val all: List<ReaderLesson> = listOf(a2(), b1(), b2())
+    val all: List<ReaderLesson> by lazy { listOf(a2(), b1(), b2()) }
 
     private fun a2(): ReaderLesson {
         val texts = listOf(
