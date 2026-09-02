@@ -5,21 +5,12 @@ import de.bascurt.almancaokuyucu.model.ReaderLesson
 import de.bascurt.almancaokuyucu.model.ReadingToken
 
 internal object ExtendedLessonFactory {
-    private data class SeparablePattern(
-        val surface: String,
-        val particle: String,
-        val seed: ExtendedVerbSeed
-    )
+    private data class SeparablePattern(val surface: String, val particle: String, val seed: ExtendedVerbSeed)
+    private data class GroupPattern(val trigger: String, val required: Set<String>, val seed: ExtendedVerbSeed)
 
     fun lesson(id: String, title: String, level: String, summary: String, texts: List<String>): ReaderLesson {
         val expandedTexts = texts + reinforcementSentences(summary)
-        return ReaderLesson(
-            id,
-            title,
-            level,
-            summary,
-            expandedTexts.mapIndexed { si, sentence -> tokenizeSentence(id, si, sentence) }
-        )
+        return ReaderLesson(id, title, level, summary, expandedTexts.mapIndexed { si, sentence -> tokenizeSentence(id, si, sentence) })
     }
 
     fun appendSentences(lesson: ReaderLesson, texts: List<String>): ReaderLesson {
@@ -32,123 +23,85 @@ internal object ExtendedLessonFactory {
     private fun tokenizeSentence(lessonId: String, sentenceIndex: Int, sentence: String): List<ReadingToken> {
         val shownTokens = sentence.split(" ")
         val keys = shownTokens.map(::clean)
-        val lexemes = keys.mapIndexed { ti, key ->
-            lexemeFor(lessonId, sentenceIndex, ti, key, shownTokens[ti])
-        }.toMutableList()
+        val lexemes = keys.mapIndexed { ti, key -> lexemeFor(lessonId, sentenceIndex, ti, key, shownTokens[ti]) }.toMutableList()
 
+        // Ayrılabilen fiiller cümledeki gerçek çekimli fiil + ayrılan parçaya göre çözülür.
         separablePatterns.forEach { pattern ->
             val verbIndex = keys.indexOf(pattern.surface)
             if (verbIndex < 0) return@forEach
             val particleIndex = (verbIndex + 1 until keys.size).firstOrNull { keys[it] == pattern.particle } ?: return@forEach
             val grouped = verbLexeme(
-                lessonId = lessonId,
-                v = pattern.seed,
-                note = "Ayrılabilen fiil: cümlede ‘${shownTokens[verbIndex]} … ${shownTokens[particleIndex]}’ tek fiildir. İki parçadan birine dokunulduğunda ikisi birlikte seçilir."
+                lessonId,
+                pattern.seed,
+                "Ayrılabilen fiil: cümlede ‘${shownTokens[verbIndex]} … ${shownTokens[particleIndex]}’ tek fiildir. İki parçadan birine dokunulduğunda ikisi birlikte seçilir."
             )
             lexemes[verbIndex] = grouped
             lexemes[particleIndex] = grouped
         }
 
+        // Dönüşlü fiillerde sich + fiil birlikte seçilir.
         keys.forEachIndexed { verbIndex, key ->
             val seed = extendedVerbLexicon[key] ?: return@forEachIndexed
             if (!seed.base.startsWith("sich ")) return@forEachIndexed
-            val sichIndex = keys.indices
-                .filter { keys[it] == "sich" }
-                .minByOrNull { kotlin.math.abs(it - verbIndex) }
-                ?: return@forEachIndexed
+            val sichIndex = keys.indices.filter { keys[it] == "sich" }.minByOrNull { kotlin.math.abs(it - verbIndex) } ?: return@forEachIndexed
             if (kotlin.math.abs(sichIndex - verbIndex) <= 6) {
-                val grouped = verbLexeme(
-                    lessonId,
-                    seed,
-                    "Dönüşlü fiil: ‘sich’ ve fiil birlikte tek kelime grubu olarak öğrenilir."
-                )
+                val grouped = verbLexeme(lessonId, seed, "Dönüşlü fiil: ‘sich’ ve fiil birlikte tek kelime grubu olarak öğrenilir.")
                 lexemes[verbIndex] = grouped
                 lexemes[sichIndex] = grouped
+            }
+        }
+
+        // Günlük dilde birlikte öğrenilmesi gereken bazı sabit fiil + edat / zamir grupları.
+        fixedGroups.forEach { pattern ->
+            val triggerIndex = keys.indexOf(pattern.trigger)
+            if (triggerIndex < 0 || !pattern.required.all { it in keys }) return@forEach
+            val grouped = verbLexeme(lessonId, pattern.seed, "Sabit kelime grubu: bu parçalar cümlede birlikte öğrenilir ve birlikte vurgulanır.")
+            lexemes[triggerIndex] = grouped
+            pattern.required.forEach { requiredKey ->
+                keys.indices.filter { keys[it] == requiredKey }.forEach { lexemes[it] = grouped }
             }
         }
 
         return shownTokens.mapIndexed { index, shown -> ReadingToken(shown, lexemes[index]) }
     }
 
-    private fun lexemeFor(
-        lessonId: String,
-        sentenceIndex: Int,
-        tokenIndex: Int,
-        key: String,
-        shown: String
-    ): Lexeme {
+    private fun lexemeFor(lessonId: String, sentenceIndex: Int, tokenIndex: Int, key: String, shown: String): Lexeme {
         extendedVerbLexicon[key]?.let { return verbLexeme(lessonId, it) }
         extendedNounLexicon[key]?.let { n ->
             return Lexeme(
-                id = "$lessonId-n-${n.base.lowercase()}",
-                base = n.base,
-                meaning = n.meaning,
-                type = "Kelime",
-                explanation = "Bu isim hikâyenin temasındaki önemli günlük kelimelerden biridir.",
-                quizEligible = true,
-                wordClass = "İsim",
-                article = n.article,
-                plural = n.plural
+                id = "$lessonId-n-${n.base.lowercase()}", base = n.base, meaning = n.meaning,
+                type = "Kelime", explanation = "Bu isim hikâyenin temasındaki önemli günlük kelimelerden biridir.",
+                quizEligible = true, wordClass = "İsim", article = n.article, plural = n.plural
             )
         }
         commonMeanings[key]?.let { c ->
-            return Lexeme(
-                id = "$lessonId-c-$sentenceIndex-$tokenIndex",
-                base = c.first,
-                meaning = c.second,
-                type = c.third,
-                quizEligible = false,
-                wordClass = c.third
-            )
+            return Lexeme(id = "$lessonId-c-$sentenceIndex-$tokenIndex", base = c.first, meaning = c.second, type = c.third, quizEligible = false, wordClass = c.third)
         }
         surfaceMeanings[key]?.let { value ->
-            return Lexeme(
-                id = "$lessonId-f-$key",
-                base = value.first,
-                meaning = value.second,
-                type = value.third,
-                quizEligible = false,
-                wordClass = value.third
-            )
+            return Lexeme(id = "$lessonId-f-$key", base = value.first, meaning = value.second, type = value.third, quizEligible = false, wordClass = value.third)
         }
         if (shown.firstOrNull()?.isUpperCase() == true) {
             return Lexeme(
                 id = "$lessonId-name-$sentenceIndex-$tokenIndex",
                 base = shown.trim('"', '„', '“', '.', ',', ':', ';', '!', '?'),
-                meaning = "özel isim / ad",
-                type = "Özel isim",
-                quizEligible = false,
-                wordClass = "Özel isim"
+                meaning = "özel isim / ad", type = "Özel isim", quizEligible = false, wordClass = "Özel isim"
             )
         }
         return Lexeme(
-            id = "$lessonId-x-$sentenceIndex-$tokenIndex",
-            base = key,
+            id = "$lessonId-x-$sentenceIndex-$tokenIndex", base = key,
             meaning = "Türkçe karşılığı içerik sözlüğünde eksik",
             explanation = "Bu kayıt sınav havuzuna alınmaz ve içerik kalite kontrolünde tamamlanmalıdır.",
-            type = "Diğer",
-            quizEligible = false,
-            wordClass = "Diğer"
+            type = "Diğer", quizEligible = false, wordClass = "Diğer"
         )
     }
 
-    private fun verbLexeme(
-        lessonId: String,
-        v: ExtendedVerbSeed,
-        note: String = "Bu fiil bu günlük yaşam temasında sık kullanılan temel bir eylemdir."
-    ) = Lexeme(
-        id = "$lessonId-v-${v.base}",
-        base = v.base,
-        meaning = v.meaning,
-        type = if (v.base.contains(' ')) "Kelime grubu" else "Fiil",
-        explanation = note,
-        quizEligible = true,
-        wordClass = "Fiil",
-        infinitive = v.base,
-        thirdPerson = v.third,
-        preterite = v.preterite,
-        perfect = v.perfect
-    )
+    private fun verbLexeme(lessonId: String, v: ExtendedVerbSeed, note: String = "Bu fiil bu günlük yaşam temasında sık kullanılan temel bir eylemdir.") =
+        Lexeme(
+            id = "$lessonId-v-${v.base}", base = v.base, meaning = v.meaning,
+            type = if (v.base.contains(' ')) "Kelime grubu" else "Fiil", explanation = note,
+            quizEligible = true, wordClass = "Fiil", infinitive = v.base,
+            thirdPerson = v.third, preterite = v.preterite, perfect = v.perfect
+        )
 
     private fun reinforcementSentences(summary: String): List<String> {
         val category = summary.substringBefore('•').trim().lowercase()
@@ -191,8 +144,7 @@ internal object ExtendedLessonFactory {
         }
     }
 
-    private fun clean(text: String): String =
-        text.trim('"', '„', '“', '.', ',', ':', ';', '!', '?', '(', ')').lowercase()
+    private fun clean(text: String): String = text.trim('"', '„', '“', '.', ',', ':', ';', '!', '?', '(', ')').lowercase()
 
     private val separablePatterns = listOf(
         SeparablePattern("macht", "an", ExtendedVerbSeed("anmachen", "açmak / çalıştırmak", "macht an", "machte an", "hat angemacht")),
@@ -209,6 +161,7 @@ internal object ExtendedLessonFactory {
         SeparablePattern("baut", "zusammen", ExtendedVerbSeed("zusammenbauen", "monte etmek / kurmak", "baut zusammen", "baute zusammen", "hat zusammengebaut")),
         SeparablePattern("füllt", "hinein", ExtendedVerbSeed("hineinfüllen", "içine doldurmak", "füllt hinein", "füllte hinein", "hat hineingefüllt")),
         SeparablePattern("füllt", "nach", ExtendedVerbSeed("nachfüllen", "yeniden doldurmak", "füllt nach", "füllte nach", "hat nachgefüllt")),
+        SeparablePattern("füllt", "aus", ExtendedVerbSeed("ausfüllen", "form doldurmak", "füllt aus", "füllte aus", "hat ausgefüllt")),
         SeparablePattern("probiert", "an", ExtendedVerbSeed("anprobieren", "denemek (kıyafet)", "probiert an", "probierte an", "hat anprobiert")),
         SeparablePattern("meldet", "an", ExtendedVerbSeed("anmelden", "kayıt yaptırmak / bildirmek", "meldet an", "meldete an", "hat angemeldet")),
         SeparablePattern("hört", "ab", ExtendedVerbSeed("abhören", "dinleyerek muayene etmek", "hört ab", "hörte ab", "hat abgehört")),
@@ -222,18 +175,36 @@ internal object ExtendedLessonFactory {
         SeparablePattern("wärmt", "auf", ExtendedVerbSeed("sich aufwärmen", "ısınmak", "wärmt sich auf", "wärmte sich auf", "hat sich aufgewärmt")),
         SeparablePattern("trägt", "ein", ExtendedVerbSeed("eintragen", "kaydetmek / girmek", "trägt ein", "trug ein", "hat eingetragen")),
         SeparablePattern("gibt", "ab", ExtendedVerbSeed("abgeben", "teslim etmek", "gibt ab", "gab ab", "hat abgegeben")),
+        SeparablePattern("gibt", "ein", ExtendedVerbSeed("eingeben", "girmek / sisteme yazmak", "gibt ein", "gab ein", "hat eingegeben")),
+        SeparablePattern("gibt", "hinein", ExtendedVerbSeed("hineingeben", "içine koymak", "gibt hinein", "gab hinein", "hat hineingegeben")),
         SeparablePattern("nimmt", "mit", ExtendedVerbSeed("mitnehmen", "yanına almak / götürmek", "nimmt mit", "nahm mit", "hat mitgenommen")),
+        SeparablePattern("nimmt", "heraus", ExtendedVerbSeed("herausnehmen", "içinden çıkarmak", "nimmt heraus", "nahm heraus", "hat herausgenommen")),
         SeparablePattern("legt", "weg", ExtendedVerbSeed("weglegen", "bir kenara koymak", "legt weg", "legte weg", "hat weggelegt")),
+        SeparablePattern("sammelt", "ein", ExtendedVerbSeed("einsammeln", "toplamak", "sammelt ein", "sammelte ein", "hat eingesammelt")),
+        SeparablePattern("fettet", "ein", ExtendedVerbSeed("einfetten", "yağlamak", "fettet ein", "fettete ein", "hat eingefettet")),
+        SeparablePattern("schließt", "ab", ExtendedVerbSeed("abschließen", "kilitlemek", "schließt ab", "schloss ab", "hat abgeschlossen")),
+        SeparablePattern("schließt", "ein", ExtendedVerbSeed("einschließen", "kilitlemek / içine kilitlemek", "schließt ein", "schloss ein", "hat eingeschlossen")),
         SeparablePattern("fährt", "ab", ExtendedVerbSeed("abfahren", "hareket etmek / yola çıkmak", "fährt ab", "fuhr ab", "ist abgefahren")),
         SeparablePattern("fährt", "ein", ExtendedVerbSeed("einfahren", "istasyona girmek", "fährt ein", "fuhr ein", "ist eingefahren")),
         SeparablePattern("fährt", "los", ExtendedVerbSeed("losfahren", "yola çıkmak", "fährt los", "fuhr los", "ist losgefahren")),
         SeparablePattern("fährt", "weiter", ExtendedVerbSeed("weiterfahren", "yola devam etmek", "fährt weiter", "fuhr weiter", "ist weitergefahren")),
         SeparablePattern("steigt", "ein", ExtendedVerbSeed("einsteigen", "binmek", "steigt ein", "stieg ein", "ist eingestiegen")),
         SeparablePattern("steigt", "aus", ExtendedVerbSeed("aussteigen", "inmek", "steigt aus", "stieg aus", "ist ausgestiegen")),
-        SeparablePattern("schließt", "ein", ExtendedVerbSeed("einschließen", "kilitlemek / içine kilitlemek", "schließt ein", "schloss ein", "hat eingeschlossen")),
         SeparablePattern("liest", "ab", ExtendedVerbSeed("ablesen", "okuyup aktarmak", "liest ab", "las ab", "hat abgelesen")),
-        SeparablePattern("klebt", "auf", ExtendedVerbSeed("aufkleben", "yapıştırmak", "klebt auf", "klebte auf", "hat aufgeklebt")),
-        SeparablePattern("bereitet", "vor", ExtendedVerbSeed("vorbereiten", "hazırlamak", "bereitet vor", "bereitete vor", "hat vorbereitet"))
+        SeparablePattern("bereitet", "vor", ExtendedVerbSeed("vorbereiten", "hazırlamak", "bereitet vor", "bereitete vor", "hat vorbereitet")),
+        SeparablePattern("nimmt", "teil", ExtendedVerbSeed("teilnehmen", "katılmak", "nimmt teil", "nahm teil", "hat teilgenommen")),
+        SeparablePattern("setzt", "fort", ExtendedVerbSeed("fortsetzen", "devam ettirmek", "setzt fort", "setzte fort", "hat fortgesetzt")),
+        SeparablePattern("setzt", "hin", ExtendedVerbSeed("sich hinsetzen", "oturmak", "setzt sich hin", "setzte sich hin", "hat sich hingesetzt"))
+    )
+
+    private val fixedGroups = listOf(
+        GroupPattern("fragt", setOf("nach"), ExtendedVerbSeed("nach etwas fragen", "bir şeyi sormak", "fragt nach", "fragte nach", "hat nach etwas gefragt")),
+        GroupPattern("achtet", setOf("auf"), ExtendedVerbSeed("auf etwas achten", "bir şeye dikkat etmek", "achtet auf", "achtete auf", "hat auf etwas geachtet")),
+        GroupPattern("spricht", setOf("über"), ExtendedVerbSeed("über etwas sprechen", "bir şey hakkında konuşmak", "spricht über", "sprach über", "hat über etwas gesprochen")),
+        GroupPattern("entscheidet", setOf("sich", "für"), ExtendedVerbSeed("sich für etwas entscheiden", "bir şeye karar vermek", "entscheidet sich", "entschied sich", "hat sich entschieden")),
+        GroupPattern("bedanken", setOf("sich"), ExtendedVerbSeed("sich bedanken", "teşekkür etmek", "bedankt sich", "bedankte sich", "hat sich bedankt")),
+        GroupPattern("verabschieden", setOf("sich"), ExtendedVerbSeed("sich verabschieden", "vedalaşmak", "verabschiedet sich", "verabschiedete sich", "hat sich verabschiedet")),
+        GroupPattern("fühlt", setOf("sich"), ExtendedVerbSeed("sich fühlen", "hissetmek", "fühlt sich", "fühlte sich", "hat sich gefühlt"))
     )
 
     private val surfaceMeanings = mapOf(
