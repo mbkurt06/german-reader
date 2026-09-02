@@ -1,6 +1,7 @@
 package de.bascurt.almancaokuyucu.data
 
 import android.content.Context
+import de.bascurt.almancaokuyucu.model.Lexeme
 
 data class UserPreferences(
     val name: String = "Kullanıcı",
@@ -18,6 +19,13 @@ data class LearningStats(
     val answered: Int = 0,
     val correct: Int = 0,
     val studySessions: Int = 0
+)
+
+data class WordStudyProgress(
+    val correct: Int = 0,
+    val wrong: Int = 0,
+    val streak: Int = 0,
+    val lastSeen: Long = 0L
 )
 
 class UserPreferencesStore(context: Context) {
@@ -73,6 +81,48 @@ class UserPreferencesStore(context: Context) {
     fun recordStudySession() {
         val stats = loadStats()
         prefs.edit().putInt("study_sessions", stats.studySessions + 1).apply()
+    }
+
+    fun wordProgress(id: String): WordStudyProgress = WordStudyProgress(
+        correct = prefs.getInt("word_${id}_correct", 0),
+        wrong = prefs.getInt("word_${id}_wrong", 0),
+        streak = prefs.getInt("word_${id}_streak", 0),
+        lastSeen = prefs.getLong("word_${id}_last_seen", 0L)
+    )
+
+    fun recordWordAnswer(id: String, correct: Boolean) {
+        val current = wordProgress(id)
+        prefs.edit()
+            .putInt("word_${id}_correct", current.correct + if (correct) 1 else 0)
+            .putInt("word_${id}_wrong", current.wrong + if (correct) 0 else 1)
+            .putInt("word_${id}_streak", if (correct) current.streak + 1 else 0)
+            .putLong("word_${id}_last_seen", System.currentTimeMillis())
+            .apply()
+    }
+
+    /**
+     * Adaptive 10-word selector.
+     * Unseen words come first. Previously missed words receive a strong boost,
+     * while words with a long correct streak are gradually spaced out.
+     * A small age bonus brings older reviewed words back over time.
+     */
+    fun selectStudyItems(candidates: List<Lexeme>, limit: Int = 10): List<Lexeme> {
+        val unique = candidates.distinctBy { it.id }
+        val now = System.currentTimeMillis()
+        return unique
+            .map { item ->
+                val progress = wordProgress(item.id)
+                val attempts = progress.correct + progress.wrong
+                val unseenBonus = if (attempts == 0) 1000.0 else 0.0
+                val errorBonus = progress.wrong * 40.0
+                val accuracyPenalty = if (attempts == 0) 0.0 else (progress.correct.toDouble() / attempts) * 20.0
+                val streakPenalty = progress.streak * 12.0
+                val ageHours = if (progress.lastSeen == 0L) 72.0 else ((now - progress.lastSeen).coerceAtLeast(0L) / 3_600_000.0).coerceAtMost(72.0)
+                item to (unseenBonus + errorBonus + ageHours - accuracyPenalty - streakPenalty)
+            }
+            .sortedByDescending { it.second }
+            .take(limit.coerceAtLeast(1))
+            .map { it.first }
     }
 
     fun resetProgress() {
