@@ -88,16 +88,27 @@ internal object ExtendedLessonFactory {
         }
     }
 
+    /**
+     * Ayrılan parçacık yalnız fiilin bulunduğu cümlecik içinde aranır.
+     * Böylece "Er macht das Licht an und sie schaut die Anzeige an" örneğinde
+     * ilk fiil ikinci cümleciğin "an" parçacığını yanlışlıkla yakalayamaz.
+     */
     private fun findSeparableParticle(
         particle: String,
         verbIndex: Int,
         keys: List<String>,
         shownTokens: List<String>
-    ): Int? = (verbIndex + 1 until keys.size)
-        .filter { index ->
-            keys[index] == particle && isParticlePosition(particle, index, keys, shownTokens)
-        }
-        .lastOrNull()
+    ): Int? {
+        val clauseEndExclusive = (verbIndex + 1 until keys.size)
+            .firstOrNull { index -> keys[index] in clauseJoiners }
+            ?: keys.size
+
+        return (verbIndex + 1 until clauseEndExclusive)
+            .filter { index ->
+                keys[index] == particle && isParticlePosition(particle, index, keys, shownTokens)
+            }
+            .lastOrNull()
+    }
 
     private fun isParticlePosition(
         particle: String,
@@ -202,6 +213,9 @@ internal object ExtendedLessonFactory {
             return surfaceLexeme(lessonId, sentenceIndex, tokenIndex, key, it)
         }
         supplementalSurfaceMeanings[key]?.let {
+            return surfaceLexeme(lessonId, sentenceIndex, tokenIndex, key, it)
+        }
+        auditedStorySurfaceMeanings[key]?.let {
             return surfaceLexeme(lessonId, sentenceIndex, tokenIndex, key, it)
         }
 
