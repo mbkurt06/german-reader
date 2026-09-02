@@ -84,6 +84,25 @@ class LessonVocabularyAuditTest {
         assertEquals("Edat", auf.lexeme.wordClass)
     }
 
+    @Test
+    fun separableParticleBeforeUndStaysInsideItsOwnClause() {
+        val lesson = ExtendedLessonFactory.lesson(
+            id = "audit-clause-boundary",
+            title = "Audit",
+            level = "A2",
+            summary = "test",
+            texts = listOf("Er macht das Licht an und sie schaut die Anzeige an.")
+        )
+        val sentence = lesson.sentences.first()
+        val macht = sentence.first { it.text == "macht" }
+        val ans = sentence.filter { it.text.trim('.', ',') == "an" }
+
+        assertEquals(2, ans.size)
+        assertEquals("anmachen", macht.lexeme.base)
+        assertEquals(macht.lexeme.id, ans.first().lexeme.id)
+        assertNotEquals(macht.lexeme.id, ans.last().lexeme.id)
+    }
+
     private fun cleanForAudit(text: String): String = text
         .trim('"', '„', '“', '.', ',', ':', ';', '!', '?', '(', ')')
         .lowercase()
