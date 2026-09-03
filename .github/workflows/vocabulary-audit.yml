@@ -1,4 +1,4 @@
-name: Vocabulary Audit
+name: App Regression CI
 
 on:
   push:
@@ -18,5 +18,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
-      - name: Run vocabulary and story-content regression tests
-        run: gradle testDebugUnitTest --tests 'de.bascurt.almancaokuyucu.data.LessonVocabularyAuditTest' --tests 'de.bascurt.almancaokuyucu.data.ExtendedLessonContentTest' --info
+      - name: Run current unit regression tests
+        run: gradle testDebugUnitTest --stacktrace
+      - name: Compile debug app
+        run: gradle assembleDebug --stacktrace
