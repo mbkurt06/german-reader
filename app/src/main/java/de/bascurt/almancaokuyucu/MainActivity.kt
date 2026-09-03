@@ -1,6 +1,9 @@
 package de.bascurt.almancaokuyucu
 
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.widget.ImageView
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -15,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -24,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import de.bascurt.almancaokuyucu.data.LearningStats
 import de.bascurt.almancaokuyucu.data.SampleLessons
 import de.bascurt.almancaokuyucu.data.SavedLexemeStore
@@ -209,7 +214,7 @@ private fun MainShell(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet(modifier = Modifier.width(310.dp)) {
-                DrawerHeader(preferences, saved.size, completedLessonIds.size)
+                DrawerHeader(preferences, saved.size, completedLessonIds.size) { navigate(AppPage.PROFILE); scope.launch { drawerState.close() } }
                 HorizontalDivider()
                 DrawerItem("⌂", uiText(lang, "Ana Sayfa"), page == AppPage.HOME) { navigate(AppPage.HOME); scope.launch { drawerState.close() } }
                 DrawerItem("★", uiText(lang, "Kelimelerim"), page == AppPage.MY_WORDS) { navigate(AppPage.MY_WORDS); scope.launch { drawerState.close() } }
@@ -217,8 +222,7 @@ private fun MainShell(
                 DrawerItem("▶", uiText(lang, "Çalışmalarım"), page == AppPage.STUDY_MENU) { navigate(AppPage.STUDY_MENU); scope.launch { drawerState.close() } }
                 DrawerItem("▥", uiText(lang, "İstatistikler"), page == AppPage.STATS) { navigate(AppPage.STATS); scope.launch { drawerState.close() } }
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                DrawerItem("●", uiText(lang, "Profilim"), page == AppPage.PROFILE) { navigate(AppPage.PROFILE); scope.launch { drawerState.close() } }
-                DrawerItem("⚙", uiText(lang, "Ayarlar"), page == AppPage.SETTINGS) { navigate(AppPage.SETTINGS); scope.launch { drawerState.close() } }
+DrawerItem("⚙", uiText(lang, "Ayarlar"), page == AppPage.SETTINGS) { navigate(AppPage.SETTINGS); scope.launch { drawerState.close() } }
                 DrawerItem("i", uiText(lang, "Uygulama hakkında"), page == AppPage.ABOUT) { navigate(AppPage.ABOUT); scope.launch { drawerState.close() } }
             }
         }
@@ -293,13 +297,29 @@ private fun MainShell(
     }
 }
 
-@Composable private fun DrawerHeader(prefs: UserPreferences, savedCount: Int, completedCount: Int) {
+@Composable private fun DrawerHeader(prefs: UserPreferences, savedCount: Int, completedCount: Int, onProfile: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(22.dp)) {
-        Surface(shape = CircleShape, color = Turquoise.copy(alpha = .16f), modifier = Modifier.size(58.dp)) {
-            Box(contentAlignment = Alignment.Center) { Text(prefs.name.take(1).uppercase(), color = Turquoise, fontSize = 24.sp, fontWeight = FontWeight.Bold) }
+        Box(Modifier.size(58.dp).clickable(onClick = onProfile)) {
+            if (prefs.profilePhotoUri.isNotBlank()) {
+                AndroidView(
+                    factory = { ctx ->
+                        ImageView(ctx).apply {
+                            scaleType = ImageView.ScaleType.CENTER_CROP
+                            setImageURI(Uri.parse(prefs.profilePhotoUri))
+                        }
+                    },
+                    update = { image -> image.setImageURI(Uri.parse(prefs.profilePhotoUri)) },
+                    modifier = Modifier.fillMaxSize().clip(CircleShape)
+                )
+            } else {
+                Surface(shape = CircleShape, color = Turquoise.copy(alpha = .16f), modifier = Modifier.fillMaxSize()) {
+                    Box(contentAlignment = Alignment.Center) { Text(prefs.name.take(1).ifBlank { "Z" }.uppercase(), color = Turquoise, fontSize = 24.sp, fontWeight = FontWeight.Bold) }
+                }
+            }
         }
         Spacer(Modifier.height(12.dp))
-        Text(prefs.name, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+        Text(prefs.name, fontSize = 21.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable(onClick = onProfile))
+        Text("@${prefs.username.ifBlank { "zeynep" }}", color = Turquoise, fontSize = 12.sp, modifier = Modifier.clickable(onClick = onProfile))
         Text("Almanca ${prefs.germanLevel}  •  $savedCount kelime  •  $completedCount tamamlandı", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
     }
 }
@@ -1106,23 +1126,61 @@ private fun MeaningStudyScreen(items: List<Lexeme>, germanToTurkish: Boolean, on
 
 @Composable
 private fun ProfileScreen(prefs: UserPreferences, onSave: (UserPreferences) -> Unit, savedCount: Int, completedCount: Int, stats: LearningStats) {
-    var name by remember(prefs.name) { mutableStateOf(prefs.name) }
-    var level by remember(prefs.germanLevel) { mutableStateOf(prefs.germanLevel) }
-    var goal by remember(prefs.dailyGoal) { mutableFloatStateOf(prefs.dailyGoal.toFloat()) }
+    val context = LocalContext.current
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = CircleShape, color = Turquoise.copy(alpha = .16f), modifier = Modifier.size(74.dp)) {
-                Box(contentAlignment = Alignment.Center) { Text(name.take(1).uppercase(), color = Turquoise, fontSize = 30.sp, fontWeight = FontWeight.Bold) }
+        ElevatedCard(shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.size(92.dp)) {
+                    if (prefs.profilePhotoUri.isNotBlank()) {
+                        AndroidView(
+                            factory = { ctx ->
+                                ImageView(ctx).apply {
+                                    scaleType = ImageView.ScaleType.CENTER_CROP
+                                    setImageURI(Uri.parse(prefs.profilePhotoUri))
+                                }
+                            },
+                            update = { image -> image.setImageURI(Uri.parse(prefs.profilePhotoUri)) },
+                            modifier = Modifier.fillMaxSize().clip(CircleShape)
+                        )
+                    } else {
+                        Surface(shape = CircleShape, color = Turquoise.copy(alpha = .16f), modifier = Modifier.fillMaxSize()) {
+                            Box(contentAlignment = Alignment.Center) { Text(prefs.name.take(1).ifBlank { "Z" }.uppercase(), color = Turquoise, fontSize = 36.sp, fontWeight = FontWeight.Bold) }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(prefs.name.ifBlank { "Zeynep" }, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                        Text("@${prefs.username.ifBlank { "zeynep" }}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Surface(
+                        color = Turquoise.copy(alpha = .12f),
+                        contentColor = Turquoise,
+                        shape = CircleShape,
+                        modifier = Modifier.size(42.dp).clickable {
+                            context.startActivity(Intent(context, ProfileSetupActivity::class.java).putExtra("edit_profile", true))
+                        }
+                    ) { Box(contentAlignment = Alignment.Center) { Text("✎", fontSize = 20.sp, fontWeight = FontWeight.Bold) } }
+                }
+                if (prefs.bio.isNotBlank()) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(prefs.bio, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
             }
-            Spacer(Modifier.width(16.dp))
-            Column { Text(name.ifBlank { "Kullanıcı" }, fontSize = 24.sp, fontWeight = FontWeight.Bold); Text("Yerel profil • veriler bu cihazda", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
-        OutlinedTextField(name, { name = it }, label = { Text("İsim") }, modifier = Modifier.fillMaxWidth())
-        Text("Almanca seviyesi", fontWeight = FontWeight.Bold)
-        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) { listOf("A1","A2","B1","B2","C1").forEach { lv -> FilterChip(selected = level == lv, onClick = { level = lv }, label = { Text(lv) }) } }
-        Text("Günlük çalışma hedefi: ${goal.toInt()} soru", fontWeight = FontWeight.Bold)
-        Slider(value = goal, onValueChange = { goal = it }, valueRange = 5f..50f, steps = 8)
-        Button(onClick = { onSave(prefs.copy(name = name.ifBlank { "Kullanıcı" }, germanLevel = level, dailyGoal = goal.toInt())) }, modifier = Modifier.fillMaxWidth()) { Text("Profili kaydet") }
+
+        ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("Profil bilgileri", fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                Text("Almanca seviyesi: ${prefs.germanLevel}")
+                Text("Öğrenme amacı: ${prefs.learningReason}")
+                Text("Günlük hedef: ${prefs.dailyGoal} soru")
+                Text("Veriler bu cihazda yerel olarak saklanıyor.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+            }
+        }
+
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             SmallStatCard("$savedCount", "Kelime", Modifier.weight(1f))
             SmallStatCard("$completedCount", "Hikâye", Modifier.weight(1f))
