@@ -90,11 +90,7 @@ private fun GermanReaderApp() {
     }
 
     fun adaptiveStudySet(source: List<Lexeme> = emptyList()): List<Lexeme> {
-        val pool = if (source.isNotEmpty()) {
-            source
-        } else {
-            (saved + adaptiveCandidates).distinctBy { it.id }
-        }
+        val pool = if (source.isNotEmpty()) source else (saved + adaptiveCandidates).distinctBy { it.id }
         return userStore.selectStudyItems(pool, 10)
     }
 
@@ -132,10 +128,7 @@ private fun GermanReaderApp() {
                 page == AppPage.STUDY_FILL -> FillBlankStudyScreen(studyItems, SampleLessons.all, { page = AppPage.STUDY_MENU }, ::recordAnswer)
                 else -> MainShell(
                     page = page,
-                    onPage = { target ->
-                        if (target == AppPage.STUDY_MENU) studyItems = adaptiveStudySet()
-                        page = target
-                    },
+                    onPage = { target -> if (target == AppPage.STUDY_MENU) studyItems = adaptiveStudySet(); page = target },
                     preferences = prefs,
                     onPreferences = ::savePrefs,
                     lessons = SampleLessons.all,
@@ -244,8 +237,7 @@ private fun MainShell(
     }
 }
 
-@Composable
-private fun DrawerHeader(prefs: UserPreferences, savedCount: Int, completedCount: Int) {
+@Composable private fun DrawerHeader(prefs: UserPreferences, savedCount: Int, completedCount: Int) {
     Column(Modifier.fillMaxWidth().padding(22.dp)) {
         Surface(shape = CircleShape, color = Turquoise.copy(alpha = .16f), modifier = Modifier.size(58.dp)) {
             Box(contentAlignment = Alignment.Center) { Text(prefs.name.take(1).uppercase(), color = Turquoise, fontSize = 24.sp, fontWeight = FontWeight.Bold) }
@@ -256,8 +248,7 @@ private fun DrawerHeader(prefs: UserPreferences, savedCount: Int, completedCount
     }
 }
 
-@Composable
-private fun DrawerItem(icon: String, label: String, selected: Boolean, onClick: () -> Unit) {
+@Composable private fun DrawerItem(icon: String, label: String, selected: Boolean, onClick: () -> Unit) {
     NavigationDrawerItem(label = { Text(label) }, icon = { Text(icon, fontSize = 20.sp) }, selected = selected, onClick = onClick, modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp))
 }
 
@@ -446,10 +437,7 @@ private fun StoryScreen(
     var showTranslations by remember(lesson.id) { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         Surface(tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                 Surface(color = levelColor(lesson.level), shape = RoundedCornerShape(10.dp)) {
                     Text(lesson.level, Modifier.padding(horizontal = 9.dp, vertical = 5.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF203038))
                 }
@@ -468,69 +456,57 @@ private fun StoryScreen(
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 110.dp)) {
             lesson.sentences.forEachIndexed { sentenceIndex, sentence ->
-            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                sentence.forEach { token ->
-                    val sameSentence = sentenceIndex == selectedSentenceIndex
-                    val sameStrongGroup = sameSentence && selected?.strongLinkId != null &&
-                        selected.strongLinkId == token.lexeme.strongLinkId
-                    val active = highlightEnabled && sameSentence &&
-                        (selected?.id == token.lexeme.id || sameStrongGroup)
-                    val selectedContextLinks = buildSet {
-                        selected?.contextLinkId?.let { add(it) }
-                        selected?.contextLinkIds?.let { addAll(it) }
-                    }
-                    val tokenContextLinks = buildSet {
-                        token.lexeme.contextLinkId?.let { add(it) }
-                        addAll(token.lexeme.contextLinkIds)
-                    }
-                    val linked = highlightEnabled && sameSentence && !active &&
-                        selectedContextLinks.isNotEmpty() && selectedContextLinks.any { it in tokenContextLinks }
-                    Text(
-                        token.text,
-                        fontSize = textSize.sp,
-                        lineHeight = (textSize + 10).sp,
-                        color = if (active) Color.White else MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.background(
-                            when { active -> Turquoise; linked -> Turquoise.copy(alpha = .46f); else -> Color.Transparent },
-                            RoundedCornerShape(7.dp)
-                        ).clickable { onSelect(sentenceIndex, token.lexeme) }.padding(horizontal = 2.dp, vertical = 2.dp)
-                    )
-                }
-            }
-            if (showTranslations) {
-                lesson.translations.getOrNull(sentenceIndex)?.let { translation ->
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        translation,
-                        fontSize = (textSize - 3).coerceAtLeast(14).sp,
-                        lineHeight = (textSize + 5).sp,
-                        color = Turquoise,
-                        modifier = Modifier.fillMaxWidth().padding(start = 2.dp)
-                    )
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-        }
-        Spacer(Modifier.height(10.dp))
-        if (isCompleted) {
-            Surface(color = Turquoise.copy(alpha = .12f), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("✓", color = Turquoise, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.width(10.dp))
-                        Column { Text("Hikâye tamamlandı", fontWeight = FontWeight.Bold); Text("Bu hikâye tamamlananlar listesinde.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp) }
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    OutlinedButton(onClick = onComplete, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(15.dp)) {
-                        Text("Tamamlandı işaretini kaldır")
+                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    sentence.forEach { token ->
+                        val sameSentence = sentenceIndex == selectedSentenceIndex
+                        val sameStrongGroup = sameSentence && selected?.strongLinkId != null && selected.strongLinkId == token.lexeme.strongLinkId
+                        val active = highlightEnabled && sameSentence && (selected?.id == token.lexeme.id || sameStrongGroup)
+                        val selectedContextLinks = buildSet {
+                            selected?.contextLinkId?.let { add(it) }
+                            selected?.contextLinkIds?.let { addAll(it) }
+                        }
+                        val tokenContextLinks = buildSet {
+                            token.lexeme.contextLinkId?.let { add(it) }
+                            addAll(token.lexeme.contextLinkIds)
+                        }
+                        val linked = highlightEnabled && sameSentence && !active && selectedContextLinks.isNotEmpty() && selectedContextLinks.any { it in tokenContextLinks }
+                        Text(
+                            token.text,
+                            fontSize = textSize.sp,
+                            lineHeight = (textSize + 10).sp,
+                            color = if (active) Color.White else MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.background(when { active -> Turquoise; linked -> Turquoise.copy(alpha = .46f); else -> Color.Transparent }, RoundedCornerShape(7.dp))
+                                .clickable { onSelect(sentenceIndex, token.lexeme) }
+                                .padding(horizontal = 2.dp, vertical = 2.dp)
+                        )
                     }
                 }
+                if (showTranslations) {
+                    lesson.translations.getOrNull(sentenceIndex)?.let { translation ->
+                        Spacer(Modifier.height(6.dp))
+                        Text(translation, fontSize = (textSize - 3).coerceAtLeast(14).sp, lineHeight = (textSize + 5).sp, color = Turquoise, modifier = Modifier.fillMaxWidth().padding(start = 2.dp))
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
             }
-        } else {
-            Button(onClick = onComplete, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(17.dp)) {
-                Text("Hikâyeyi tamamlandı olarak işaretle", fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(10.dp))
+            if (isCompleted) {
+                Surface(color = Turquoise.copy(alpha = .12f), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("✓", color = Turquoise, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.width(10.dp))
+                            Column { Text("Hikâye tamamlandı", fontWeight = FontWeight.Bold); Text("Bu hikâye tamamlananlar listesinde.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp) }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedButton(onClick = onComplete, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(15.dp)) { Text("Tamamlandı işaretini kaldır") }
+                    }
+                }
+            } else {
+                Button(onClick = onComplete, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(17.dp)) {
+                    Text("Hikâyeyi tamamlandı olarak işaretle", fontWeight = FontWeight.SemiBold)
+                }
             }
-        }
         }
     }
 }
@@ -643,12 +619,7 @@ private fun MyWordsScreen(lessons: List<ReaderLesson>, saved: List<Lexeme>, onRe
 }
 
 @Composable
-private fun MeaningStudyScreen(
-    items: List<Lexeme>,
-    germanToTurkish: Boolean,
-    onBack: () -> Unit,
-    onAnswered: (Lexeme, Boolean) -> Unit
-) {
+private fun MeaningStudyScreen(items: List<Lexeme>, germanToTurkish: Boolean, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
     if (items.isEmpty()) { EmptyStudyScreen(onBack); return }
     var index by remember(germanToTurkish) { mutableIntStateOf(0) }
     var selectedAnswer by remember(index, germanToTurkish) { mutableStateOf<String?>(null) }
@@ -730,16 +701,8 @@ private fun MeaningStudyScreen(
 @Composable private fun StudyAnswerButton(option: String, selected: String?, correct: String, onClick: () -> Unit) {
     val isSelected = selected == option
     val isCorrect = selected != null && normalizeAnswer(option) == normalizeAnswer(correct)
-    val container = when {
-        isCorrect -> Success.copy(alpha = .14f)
-        isSelected -> MaterialTheme.colorScheme.error.copy(alpha = .12f)
-        else -> MaterialTheme.colorScheme.surface
-    }
-    val borderColor = when {
-        isCorrect -> Success
-        isSelected -> MaterialTheme.colorScheme.error
-        else -> MaterialTheme.colorScheme.outlineVariant
-    }
+    val container = when { isCorrect -> Success.copy(alpha = .14f); isSelected -> MaterialTheme.colorScheme.error.copy(alpha = .12f); else -> MaterialTheme.colorScheme.surface }
+    val borderColor = when { isCorrect -> Success; isSelected -> MaterialTheme.colorScheme.error; else -> MaterialTheme.colorScheme.outlineVariant }
     OutlinedButton(
         onClick = onClick,
         enabled = selected == null,
@@ -864,39 +827,41 @@ private fun StatsScreen(saved: List<Lexeme>, completedIds: Set<String>, stats: L
 @Composable
 private fun SettingsScreen(prefs: UserPreferences, onSave: (UserPreferences) -> Unit, onFullReset: () -> Unit) {
     var confirmReset by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        SettingCard("Görünüm") {
-            Text("Tema", fontWeight = FontWeight.Bold)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("system" to "Sistem", "light" to "Açık", "dark" to "Karanlık").forEach { (id, label) -> FilterChip(selected = prefs.themeMode == id, onClick = { onSave(prefs.copy(themeMode = id)) }, label = { Text(label) }) } }
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            SettingCard("Görünüm") {
+                Text("Tema", fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("system" to "Sistem", "light" to "Açık", "dark" to "Karanlık").forEach { (id, label) -> FilterChip(selected = prefs.themeMode == id, onClick = { onSave(prefs.copy(themeMode = id)) }, label = { Text(label) }) }
+                }
+                Spacer(Modifier.height(12.dp))
+                Text("Arayüz yazı boyutu", fontWeight = FontWeight.Bold)
+                Text("${(prefs.uiScale * 100).toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Slider(value = prefs.uiScale, onValueChange = { onSave(prefs.copy(uiScale = it)) }, valueRange = .85f..1.25f)
+                Text("Hikâye yazı boyutu: ${prefs.storyTextSize}", fontWeight = FontWeight.Bold)
+                Slider(value = prefs.storyTextSize.toFloat(), onValueChange = { onSave(prefs.copy(storyTextSize = it.toInt())) }, valueRange = 18f..30f, steps = 5)
             }
-            Spacer(Modifier.height(12.dp))
-            Text("Arayüz yazı boyutu", fontWeight = FontWeight.Bold)
-            Text("${(prefs.uiScale * 100).toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Slider(value = prefs.uiScale, onValueChange = { onSave(prefs.copy(uiScale = it)) }, valueRange = .85f..1.25f)
-            Text("Hikâye yazı boyutu: ${prefs.storyTextSize}", fontWeight = FontWeight.Bold)
-            Slider(value = prefs.storyTextSize.toFloat(), onValueChange = { onSave(prefs.copy(storyTextSize = it.toInt())) }, valueRange = 18f..30f, steps = 5)
+            SettingCard("Okuma") {
+                SwitchSetting("Seçilen kelimeyi vurgula", prefs.highlightEnabled) { onSave(prefs.copy(highlightEnabled = it)) }
+                SwitchSetting("Ayrıntılı açıklamaları göster", prefs.detailedExplanations) { onSave(prefs.copy(detailedExplanations = it)) }
+            }
+            SettingCard("Sınav") {
+                Text("Hikâye sınavında soru sayısı: ${prefs.quizQuestionCount}", fontWeight = FontWeight.Bold)
+                Slider(value = prefs.quizQuestionCount.toFloat(), onValueChange = { onSave(prefs.copy(quizQuestionCount = it.toInt())) }, valueRange = 5f..20f, steps = 14)
+            }
+            OutlinedButton(onClick = { confirmReset = true }, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp)) {
+                Text("Uygulamayı tamamen sıfırla")
+            }
         }
-        SettingCard("Okuma") {
-            SwitchSetting("Seçilen kelimeyi vurgula", prefs.highlightEnabled) { onSave(prefs.copy(highlightEnabled = it)) }
-            SwitchSetting("Ayrıntılı açıklamaları göster", prefs.detailedExplanations) { onSave(prefs.copy(detailedExplanations = it)) }
+        if (confirmReset) {
+            AlertDialog(
+                onDismissRequest = { confirmReset = false },
+                title = { Text("Uygulama sıfırlansın mı?") },
+                text = { Text("Kaydedilen kelimeler, tamamlanan hikâyeler, çalışma istatistikleri, kelime öğrenme geçmişi, profil ve ayarlar silinecek. Bu işlem geri alınamaz.") },
+                confirmButton = { TextButton(onClick = { onFullReset(); confirmReset = false }) { Text("Tamamen sıfırla") } },
+                dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Vazgeç") } }
+            )
         }
-        SettingCard("Sınav") {
-            Text("Hikâye sınavında soru sayısı: ${prefs.quizQuestionCount}", fontWeight = FontWeight.Bold)
-            Slider(value = prefs.quizQuestionCount.toFloat(), onValueChange = { onSave(prefs.copy(quizQuestionCount = it.toInt())) }, valueRange = 5f..20f, steps = 14)
-        }
-        OutlinedButton(onClick = { confirmReset = true }, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp)) {
-            Text("Uygulamayı tamamen sıfırla")
-        }
-    }
-    if (confirmReset) {
-        AlertDialog(
-            onDismissRequest = { confirmReset = false },
-            title = { Text("Uygulama sıfırlansın mı?") },
-            text = { Text("Kaydedilen kelimeler, tamamlanan hikâyeler, çalışma istatistikleri, kelime öğrenme geçmişi, profil ve ayarlar silinecek. Bu işlem geri alınamaz.") },
-            confirmButton = { TextButton(onClick = { onFullReset(); confirmReset = false }) { Text("Tamamen sıfırla") } },
-            dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Vazgeç") } }
-        )
     }
 }
 
