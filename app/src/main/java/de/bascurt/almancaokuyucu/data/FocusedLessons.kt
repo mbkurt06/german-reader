@@ -39,7 +39,7 @@ internal object FocusedLessons {
                 "Bir sonraki adım hakkında başka bir kişiyle kısaca konuşuyor.",
                 "Son olarak yerini topluyor ve günü memnun bir şekilde bitiriyor."
             ),
-            phrases = commonPhrases + listOf(
+            phrases = commonPhrases() + listOf(
                 phrase("am Morgen", "sabah", "Bu cümlede ‘am Morgen’ birlikte zaman bildirir; ‘am’ ve ‘Morgen’ ayrı ayrı çevrilmez."),
                 phrase("an der Rezeption", "resepsiyonda", "Bu kullanım bulunduğu yeri anlatır: ‘an der Rezeption’ = resepsiyonda."),
                 phrase("nach dem Frühstück", "kahvaltıyı / kahvaltı hakkında", "Buradaki ‘nach’ sormak fiiliyle birlikte ‘fragen nach’ yapısının parçasıdır; zaman anlamındaki ‘kahvaltıdan sonra’ değildir."),
@@ -81,7 +81,7 @@ internal object FocusedLessons {
                 "Çalışma yerini topluyor ve kullanılan eşyaları yerine geri koyuyor.",
                 "Son olarak sonuç hakkında kısaca konuşuyor ve memnun oluyor."
             ),
-            phrases = commonPhrases + listOf(
+            phrases = commonPhrases() + listOf(
                 phrase("auf den Herd", "ocağın üzerine", "Buradaki ‘auf’ ayrılabilir fiil eki değildir; tencerenin nereye konduğunu anlatan edattır."),
                 phrase("auf dem Brett", "tahta üzerinde", "Buradaki ‘auf’ konum bildirir: tahta üzerinde."),
                 phrase("in kleine Stücke", "küçük parçalara", "Doğrama sonucunu anlatan birlikte kullanılan ifadedir."),
@@ -123,7 +123,7 @@ internal object FocusedLessons {
                 "Kişi bir kez daha soruyor ve dikkatlice dinliyor.",
                 "Son olarak önündeki günler için bir tavsiye alıyor."
             ),
-            phrases = commonPhrases + listOf(
+            phrases = commonPhrases() + listOf(
                 phrase("seit gestern", "dünden beri", "‘seit gestern’ başlangıç noktası geçmişte olan ve hâlâ devam eden durumu anlatır."),
                 phrase("beim Arzt", "doktorda / doktor muayenehanesinde", "‘beim’ burada ‘bei dem’ kısaltmasıdır ve bulunulan yeri anlatır."),
                 phrase("wie lange", "ne kadar süredir / ne kadar uzun", "Bu soruda ‘wie lange’ süreyi soran tek bir soru ifadesidir."),
@@ -165,7 +165,7 @@ internal object FocusedLessons {
                 "Çalışma yerini topluyor ve kullanılan eşyaları yerine geri koyuyor.",
                 "Son olarak sonuç hakkında kısaca konuşuyor ve memnun oluyor."
             ),
-            phrases = commonPhrases + listOf(
+            phrases = commonPhrases() + listOf(
                 phrase("am frühen Morgen", "sabah erken saatlerde", "Bu ifade birlikte günün erken sabah bölümünü anlatır."),
                 phrase("für das Brot", "ekmek için", "‘für’ burada amaç bildirir: ekmek yapmak için kullanılacak hamur."),
                 phrase("in den Ofen", "fırının içine", "Bu ifade hareketin yönünü, tepsinin nereye sürüldüğünü anlatır."),
@@ -209,7 +209,7 @@ internal object FocusedLessons {
                 "Fiyatı kontrol ediyor ve uygun şeyleri çantaya koyuyor.",
                 "Son olarak ödeme yapıyor ve fişi yanına alıyor."
             ),
-            phrases = commonPhrases + listOf(
+            phrases = commonPhrases() + listOf(
                 phrase("nach der Arbeit", "işten sonra", "Buradaki ‘nach’ zamansal anlam taşır: iş bittikten sonra."),
                 phrase("am Eingang", "girişte", "Bu ifade süpermarketin giriş bölümündeki konumu anlatır."),
                 phrase("im Kühlregal", "soğutucu reyonda", "‘im’ = ‘in dem’; ürünün bulunduğu yeri anlatır."),
@@ -223,7 +223,7 @@ internal object FocusedLessons {
         )
     )
 
-    private val commonPhrases = listOf(
+    private fun commonPhrases() = listOf(
         phrase("zum Schluss", "son olarak / en sonunda", "Bu cümlede ‘zum Schluss’ tek bir zaman-sıralama ifadesidir; kelimeler ayrı ayrı çevrilmez."),
         phrase("noch einmal", "bir kez daha / tekrar", "Bu iki kelime birlikte eylemin tekrarlandığını anlatır."),
         phrase("bei Bedarf", "gerektiğinde / ihtiyaç hâlinde", "‘bei Bedarf’ birlikte kullanılan kalıp bir ifadedir."),
