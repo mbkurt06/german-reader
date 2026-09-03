@@ -405,13 +405,15 @@ private fun ReaderScreen(
                     selectedSentenceIndex = selectedSentenceIndex,
                     textSize = preferences.storyTextSize,
                     brightness = preferences.readerBrightness,
+                    nightMode = preferences.readerNightMode,
                     highlightEnabled = preferences.highlightEnabled,
                     translationLanguage = preferences.translationLanguage,
                     appLanguage = preferences.appLanguage,
                     isCompleted = isCompleted,
                     onComplete = onComplete,
                     onTextSizeChange = { onPreferences(preferences.copy(storyTextSize = it)) },
-                    onBrightnessChange = { onPreferences(preferences.copy(readerBrightness = it)) }
+                    onBrightnessChange = { onPreferences(preferences.copy(readerBrightness = it)) },
+                    onNightModeChange = { onPreferences(preferences.copy(readerNightMode = it)) }
                 ) { sentenceIndex, lexeme -> selectedSentenceIndex = sentenceIndex; selected = lexeme }
                 ReaderTab.QUIZ -> QuizScreen(lesson, preferences.quizQuestionCount)
                 ReaderTab.WORDS -> LessonWordsScreen(lesson, saved, onToggleSaved)
@@ -504,6 +506,7 @@ private fun StoryScreen(
     selectedSentenceIndex: Int,
     textSize: Int,
     brightness: Float,
+    nightMode: Boolean,
     highlightEnabled: Boolean,
     translationLanguage: String,
     appLanguage: String,
@@ -511,12 +514,15 @@ private fun StoryScreen(
     onComplete: () -> Unit,
     onTextSizeChange: (Int) -> Unit,
     onBrightnessChange: (Float) -> Unit,
+    onNightModeChange: (Boolean) -> Unit,
     onSelect: (Int, Lexeme) -> Unit
 ) {
     var showTranslations by remember(lesson.id) { mutableStateOf(false) }
     var showDisplayControls by remember(lesson.id) { mutableStateOf(false) }
     val translations = remember(lesson.id, translationLanguage) { StoryTranslationCatalog.translationsFor(lesson, translationLanguage) }
     val activity = LocalContext.current as? Activity
+    val readerBackground = if (nightMode) Color(0xFF0B1014) else MaterialTheme.colorScheme.background
+    val readerTextColor = if (nightMode) Color(0xFFE9EEF0) else MaterialTheme.colorScheme.onBackground
 
     DisposableEffect(activity, brightness) {
         val window = activity?.window
@@ -535,8 +541,8 @@ private fun StoryScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        Surface(tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
+    Column(Modifier.fillMaxSize().background(readerBackground)) {
+        Surface(color = if (nightMode) Color(0xFF141C21) else MaterialTheme.colorScheme.surface, tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                 Surface(color = levelColor(lesson.level), shape = RoundedCornerShape(10.dp)) {
                     Text(lesson.level, Modifier.padding(horizontal = 8.dp, vertical = 5.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF203038))
@@ -591,7 +597,7 @@ private fun StoryScreen(
                             token.text,
                             fontSize = textSize.sp,
                             lineHeight = (textSize + 10).sp,
-                            color = if (active) Color.White else MaterialTheme.colorScheme.onBackground,
+                            color = if (active) Color.White else readerTextColor,
                             modifier = Modifier.background(when { active -> Turquoise; linked -> Turquoise.copy(alpha = .46f); else -> Color.Transparent }, RoundedCornerShape(7.dp))
                                 .clickable { onSelect(sentenceIndex, token.lexeme) }
                                 .padding(horizontal = 2.dp, vertical = 2.dp)
@@ -630,15 +636,17 @@ private fun StoryScreen(
     if (showDisplayControls) {
         ModalBottomSheet(
             onDismissRequest = { showDisplayControls = false },
-            containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = 10.dp,
+            containerColor = Color(0xD92A2E31),
+            contentColor = Color.White,
+            scrimColor = Color.Black.copy(alpha = .18f),
+            tonalElevation = 0.dp,
             shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
             dragHandle = {
                 Box(
                     Modifier
                         .padding(top = 10.dp, bottom = 6.dp)
                         .size(width = 42.dp, height = 4.dp)
-                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .28f), RoundedCornerShape(8.dp))
+                        .background(Color.White.copy(alpha = .45f), RoundedCornerShape(8.dp))
                 )
             }
         ) {
@@ -653,12 +661,12 @@ private fun StoryScreen(
                 Text(
                     "Yazıyı ve ekran ışığını okurken anlık olarak ayarla.",
                     fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color.White.copy(alpha = .72f)
                 )
                 Spacer(Modifier.height(18.dp))
 
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .48f),
+                    color = Color.White.copy(alpha = .07f),
                     shape = RoundedCornerShape(22.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -672,10 +680,13 @@ private fun StoryScreen(
                         Spacer(Modifier.height(6.dp))
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Surface(
-                                color = MaterialTheme.colorScheme.surface,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.size(38.dp)
-                            ) { Box(contentAlignment = Alignment.Center) { Text("A", fontSize = 17.sp) } }
+                                color = Color.White.copy(alpha = .08f),
+                                contentColor = Color.White,
+                                shape = CircleShape,
+                                modifier = Modifier.size(54.dp).clickable(enabled = textSize > 18) {
+                                    onTextSizeChange((textSize - 1).coerceAtLeast(18))
+                                }
+                            ) { Box(contentAlignment = Alignment.Center) { Text("A⁻", fontSize = 22.sp) } }
                             Slider(
                                 value = textSize.toFloat(),
                                 onValueChange = { onTextSizeChange(it.toInt()) },
@@ -685,19 +696,22 @@ private fun StoryScreen(
                                 colors = SliderDefaults.colors(
                                     thumbColor = Turquoise,
                                     activeTrackColor = Turquoise,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .65f)
+                                    inactiveTrackColor = Color.White.copy(alpha = .30f)
                                 )
                             )
                             Surface(
-                                color = MaterialTheme.colorScheme.surface,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.size(38.dp)
-                            ) { Box(contentAlignment = Alignment.Center) { Text("A", fontSize = 25.sp, fontWeight = FontWeight.SemiBold) } }
+                                color = Color.White.copy(alpha = .08f),
+                                contentColor = Color.White,
+                                shape = CircleShape,
+                                modifier = Modifier.size(54.dp).clickable(enabled = textSize < 30) {
+                                    onTextSizeChange((textSize + 1).coerceAtMost(30))
+                                }
+                            ) { Box(contentAlignment = Alignment.Center) { Text("A⁺", fontSize = 27.sp, fontWeight = FontWeight.SemiBold) } }
                         }
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 47.dp)) {
-                            Text("18", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 63.dp)) {
+                            Text("18", fontSize = 11.sp, color = Color.White.copy(alpha = .65f))
                             Spacer(Modifier.weight(1f))
-                            Text("30", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("30", fontSize = 11.sp, color = Color.White.copy(alpha = .65f))
                         }
                     }
                 }
@@ -705,7 +719,7 @@ private fun StoryScreen(
                 Spacer(Modifier.height(12.dp))
 
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .48f),
+                    color = Color.White.copy(alpha = .07f),
                     shape = RoundedCornerShape(22.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -718,7 +732,14 @@ private fun StoryScreen(
                         }
                         Spacer(Modifier.height(6.dp))
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("☼", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(38.dp))
+                            Surface(
+                                color = Color.White.copy(alpha = .08f),
+                                contentColor = Color.White,
+                                shape = CircleShape,
+                                modifier = Modifier.size(54.dp).clickable(enabled = brightness > .08f) {
+                                    onBrightnessChange((brightness - .08f).coerceAtLeast(.08f))
+                                }
+                            ) { Box(contentAlignment = Alignment.Center) { Text("☼", fontSize = 24.sp) } }
                             Slider(
                                 value = brightness,
                                 onValueChange = { onBrightnessChange(it.coerceIn(.08f, 1f)) },
@@ -727,18 +748,59 @@ private fun StoryScreen(
                                 colors = SliderDefaults.colors(
                                     thumbColor = Turquoise,
                                     activeTrackColor = Turquoise,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .65f)
+                                    inactiveTrackColor = Color.White.copy(alpha = .30f)
                                 )
                             )
-                            Box(Modifier.width(38.dp), contentAlignment = Alignment.CenterEnd) {
-                                Text("☀", fontSize = 23.sp, color = Turquoise)
-                            }
+                            Surface(
+                                color = Color.White.copy(alpha = .08f),
+                                contentColor = Color(0xFFFFC928),
+                                shape = CircleShape,
+                                modifier = Modifier.size(54.dp).clickable(enabled = brightness < 1f) {
+                                    onBrightnessChange((brightness + .08f).coerceAtMost(1f))
+                                }
+                            ) { Box(contentAlignment = Alignment.Center) { Text("☀", fontSize = 25.sp) } }
                         }
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 47.dp)) {
-                            Text("8%", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 63.dp)) {
+                            Text("8%", fontSize = 11.sp, color = Color.White.copy(alpha = .65f))
                             Spacer(Modifier.weight(1f))
-                            Text("100%", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("100%", fontSize = 11.sp, color = Color.White.copy(alpha = .65f))
                         }
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                Surface(
+                    color = Color.White.copy(alpha = .07f),
+                    shape = RoundedCornerShape(22.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            color = Color.White.copy(alpha = .08f),
+                            contentColor = Color.White,
+                            shape = CircleShape,
+                            modifier = Modifier.size(54.dp).clickable { onNightModeChange(!nightMode) }
+                        ) { Box(contentAlignment = Alignment.Center) { Text("☾", fontSize = 30.sp) } }
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Gece modu", fontWeight = FontWeight.SemiBold)
+                            Text("Okuma alanını koyu renge geçirir.", fontSize = 12.sp, color = Color.White.copy(alpha = .65f))
+                        }
+                        Switch(
+                            checked = nightMode,
+                            onCheckedChange = onNightModeChange,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Turquoise,
+                                uncheckedThumbColor = Color.White,
+                                uncheckedTrackColor = Color.White.copy(alpha = .18f),
+                                uncheckedBorderColor = Color.White.copy(alpha = .38f)
+                            )
+                        )
                     }
                 }
             }
