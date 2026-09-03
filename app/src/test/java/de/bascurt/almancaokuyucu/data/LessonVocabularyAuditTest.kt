@@ -9,18 +9,29 @@ import org.junit.Test
 class LessonVocabularyAuditTest {
 
     @Test
-    fun focusedReaderUsesExactlyFiveLessons() {
-        assertEquals(5, SampleLessons.all.size)
-        assertEquals(
-            listOf(
-                "a2-neuer-anfang",
-                "a2-kueche",
-                "a2-arzt",
-                "a2-baeckerei",
-                "a2-supermarkt"
-            ),
-            SampleLessons.all.map { it.id }
-        )
+    fun focusedReaderUsesOnlyEinNeuerAnfang() {
+        assertEquals(listOf("a2-neuer-anfang"), SampleLessons.all.map { it.id })
+    }
+
+    @Test
+    fun focusedStoryProvidesCompactDictionaryMetadata() {
+        val lesson = SampleLessons.all.single()
+
+        val fragt = lesson.sentences[4].first { clean(it.text) == "fragt" }.lexeme
+        assertEquals("nach + D fragen", fragt.dictionaryForm)
+        assertEquals("nach dem Frühstück fragen", fragt.contextExpression)
+        assertEquals("kahvaltıyı / kahvaltı hakkında sormak", fragt.contextMeaning)
+
+        val hotel = lesson.sentences[0].first { clean(it.text) == "hotel" }.lexeme
+        assertEquals("das", hotel.article)
+        assertEquals("Hotels", hotel.plural)
+        assertEquals("im Hotel", hotel.contextExpression)
+
+        val wichtig = lesson.sentences[2].first { clean(it.text) == "wichtigsten" }.lexeme
+        assertEquals("wichtig", wichtig.positive)
+        assertEquals("wichtiger", wichtig.comparative)
+        assertEquals("am wichtigsten", wichtig.superlative)
+        assertEquals("die wichtigsten Aufgaben", wichtig.contextExpression)
     }
 
     @Test
