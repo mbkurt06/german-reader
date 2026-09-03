@@ -1,4 +1,4 @@
-name: Patch Noun Phrase Highlight UI
+name: Apply First Story Noun Phrase Links
 on:
   push:
     paths:
@@ -10,13 +10,47 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Patch UI
+      - name: Patch first story
         run: |
-          python3 -c 'from pathlib import Path; p=Path("app/src/main/java/de/bascurt/almancaokuyucu/MainActivity.kt"); s=p.read_text(); old="                    val linked = highlightEnabled && sameSentence && !active && selected?.contextLinkId != null &&\n                        selected.contextLinkId == token.lexeme.contextLinkId\n"; new="                    val selectedContextLinks = buildSet {\n                        selected?.contextLinkId?.let { add(it) }\n                        selected?.contextLinkIds?.let { addAll(it) }\n                    }\n                    val tokenContextLinks = buildSet {\n                        token.lexeme.contextLinkId?.let { add(it) }\n                        addAll(token.lexeme.contextLinkIds)\n                    }\n                    val linked = highlightEnabled && sameSentence && !active &&\n                        selectedContextLinks.isNotEmpty() && selectedContextLinks.any { it in tokenContextLinks }\n"; assert old in s; p.write_text(s.replace(old,new,1))'
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app/src/main/java/de/bascurt/almancaokuyucu/data/FocusedLessons.kt')
+          s = p.read_text()
+          if 'linkAt(6, "eine kurze Pause"' not in s:
+              anchor = '                linkAt(0, "ihre neue Arbeit", "yeni işi", "ihre neue Arbeit → onun yeni işi. Bu isim grubunda ihre iyelik bildirir, neue sıfattır ve Arbeit isimdir; seçilen kelime koyu, aynı isim grubundaki diğer kelimeler bağlantılı olarak açık vurgulanır."),\n'
+              additions = (
+                  '                linkAt(1, "die Kollegen", "çalışma arkadaşları", "die Kollegen → çalışma arkadaşları. Artikel + isim aynı isim grubudur."),\n'
+                  '                linkAt(1, "eine Zimmerliste", "bir oda listesi", "eine Zimmerliste → bir oda listesi. Belirsiz artikel + isim aynı isim grubudur."),\n'
+                  '                linkAt(2, "Ihre Chefin", "onun şefi", "Ihre Chefin → onun şefi. İyelik belirleyicisi + isim aynı isim grubudur."),\n'
+                  '                linkAt(2, "die Rezeption", "resepsiyon", "die Rezeption → resepsiyon. Artikel + isim aynı isim grubudur."),\n'
+                  '                linkAt(2, "die wichtigsten Aufgaben", "en önemli görevler", "die wichtigsten Aufgaben → en önemli görevler. Artikel + sıfat + isim aynı isim grubudur."),\n'
+                  '                linkAt(3, "die ersten Fragen", "ilk sorular", "die ersten Fragen → ilk sorular. Artikel + sıfat + isim aynı isim grubudur."),\n'
+                  '                linkAt(3, "den Gästen", "misafirler", "den Gästen → misafirler. Dativ çoğul artikel + isim aynı isim grubudur."),\n'
+                  '                linkAt(4, "Ein Gast", "bir misafir", "Ein Gast → bir misafir. Belirsiz artikel + isim aynı isim grubudur."),\n'
+                  '                linkAt(4, "dem Frühstück", "kahvaltı", "dem Frühstück → kahvaltı. Dativ artikel + isim aynı isim grubudur."),\n'
+                  '                linkAt(4, "den Weg", "yolu", "den Weg → yolu. Akkusativ artikel + isim aynı isim grubudur."),\n'
+                  '                linkAt(5, "die Zimmerliste", "oda listesi", "die Zimmerliste → oda listesi. Artikel + isim aynı isim grubudur."),\n'
+                  '                linkAt(6, "eine kurze Pause", "kısa bir mola", "eine kurze Pause → kısa bir mola. Belirsiz artikel + sıfat + isim aynı isim grubudur; seçilen koyu, diğerleri açık vurgulanır."),\n'
+                  '                linkAt(6, "den Kollegen", "çalışma arkadaşları", "den Kollegen → çalışma arkadaşları. Dativ çoğul artikel + isim aynı isim grubudur."),\n'
+                  '                linkAt(7, "der Pause", "mola", "der Pause → mola. Dativ artikel + isim aynı isim grubudur."),\n'
+                  '                linkAt(7, "der Rezeption", "resepsiyon", "der Rezeption → resepsiyon. Dativ artikel + isim aynı isim grubudur."),\n'
+                  '                linkAt(8, "Eine Kollegin", "bir çalışma arkadaşı", "Eine Kollegin → bir çalışma arkadaşı. Belirsiz artikel + isim aynı isim grubudur."),\n'
+                  '                linkAt(8, "einige wichtige Sachen", "bazı önemli şeyler", "einige wichtige Sachen → bazı önemli şeyler. Belirleyici + sıfat + isim aynı isim grubudur."),\n'
+                  '                linkAt(10, "ihrer Chefin", "şefi", "ihrer Chefin → şefi. İyelik belirleyicisi + isim aynı isim grubudur."),\n'
+                  '                linkAt(10, "den ersten Arbeitstag", "ilk iş günü", "den ersten Arbeitstag → ilk iş günü. Artikel + sıfat + isim aynı isim grubudur."),\n'
+                  '                linkAt(11, "ihren Platz", "yerini", "ihren Platz → yerini. İyelik belirleyicisi + isim aynı isim grubudur."),\n'
+                  '                linkAt(11, "den Kollegen", "çalışma arkadaşları", "den Kollegen → çalışma arkadaşları. Dativ çoğul artikel + isim aynı isim grubudur."),\n'
+              )
+              if anchor not in s:
+                  raise SystemExit('noun phrase anchor not found')
+              s = s.replace(anchor, anchor + ''.join(additions), 1)
+              p.write_text(s)
+          PY
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/src/main/java/de/bascurt/almancaokuyucu/MainActivity.kt
-          git commit -m "Support overlapping contextual highlights"
+          git add app/src/main/java/de/bascurt/almancaokuyucu/data/FocusedLessons.kt
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Add noun phrase links to first story"
           git push
