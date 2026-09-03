@@ -9,6 +9,7 @@ data class UserPreferences(
     val dailyGoal: Int = 10,
     val themeMode: String = "system",
     val storyTextSize: Int = 22,
+    val readerBrightness: Float = 1f,
     val uiScale: Float = 1f,
     val highlightEnabled: Boolean = true,
     val detailedExplanations: Boolean = true,
@@ -39,6 +40,7 @@ class UserPreferencesStore(context: Context) {
         dailyGoal = prefs.getInt("daily_goal", 10),
         themeMode = prefs.getString("theme_mode", "system") ?: "system",
         storyTextSize = prefs.getInt("story_text_size", 22),
+        readerBrightness = prefs.getFloat("reader_brightness", 1f),
         uiScale = prefs.getFloat("ui_scale", 1f),
         highlightEnabled = prefs.getBoolean("highlight_enabled", true),
         detailedExplanations = prefs.getBoolean("detailed_explanations", true),
@@ -54,6 +56,7 @@ class UserPreferencesStore(context: Context) {
             .putInt("daily_goal", value.dailyGoal)
             .putString("theme_mode", value.themeMode)
             .putInt("story_text_size", value.storyTextSize)
+            .putFloat("reader_brightness", value.readerBrightness)
             .putFloat("ui_scale", value.uiScale)
             .putBoolean("highlight_enabled", value.highlightEnabled)
             .putBoolean("detailed_explanations", value.detailedExplanations)
