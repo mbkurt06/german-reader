@@ -79,7 +79,7 @@ private fun GermanReaderApp() {
     }
 
     fun completeLesson(lesson: ReaderLesson) {
-        userStore.markLessonRead(lesson.id)
+        userStore.toggleLessonRead(lesson.id)
         completedLessonIds = userStore.readLessonIds()
     }
 
@@ -427,22 +427,24 @@ private fun StoryScreen(
     onSelect: (Int, Lexeme) -> Unit
 ) {
     var showTranslations by remember(lesson.id) { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 110.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            LevelBadge(lesson.level)
-            Spacer(Modifier.width(12.dp))
-            Text(lesson.title, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+    Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LevelBadge(lesson.level)
+                Spacer(Modifier.width(12.dp))
+                Text(lesson.title, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = { showTranslations = !showTranslations },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(15.dp)
+            ) {
+                Text(if (showTranslations) "Çeviriyi gizle" else "Çevirisi", fontWeight = FontWeight.SemiBold)
+            }
         }
-        Spacer(Modifier.height(12.dp))
-        OutlinedButton(
-            onClick = { showTranslations = !showTranslations },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(15.dp)
-        ) {
-            Text(if (showTranslations) "Çeviriyi gizle" else "Çevirisi", fontWeight = FontWeight.SemiBold)
-        }
-        Spacer(Modifier.height(18.dp))
-        lesson.sentences.forEachIndexed { sentenceIndex, sentence ->
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 110.dp)) {
+            lesson.sentences.forEachIndexed { sentenceIndex, sentence ->
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 sentence.forEach { token ->
                     val sameSentence = sentenceIndex == selectedSentenceIndex
@@ -489,16 +491,23 @@ private fun StoryScreen(
         Spacer(Modifier.height(10.dp))
         if (isCompleted) {
             Surface(color = Turquoise.copy(alpha = .12f), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("✓", color = Turquoise, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.width(10.dp))
-                    Column { Text("Hikâye tamamlandı", fontWeight = FontWeight.Bold); Text("Bu hikâye tamamlananlar listesinde.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp) }
+                Column(Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("✓", color = Turquoise, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(10.dp))
+                        Column { Text("Hikâye tamamlandı", fontWeight = FontWeight.Bold); Text("Bu hikâye tamamlananlar listesinde.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp) }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedButton(onClick = onComplete, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(15.dp)) {
+                        Text("Tamamlandı işaretini kaldır")
+                    }
                 }
             }
         } else {
             Button(onClick = onComplete, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(17.dp)) {
                 Text("Hikâyeyi tamamlandı olarak işaretle", fontWeight = FontWeight.SemiBold)
             }
+        }
         }
     }
 }

@@ -62,6 +62,7 @@ internal object FocusedLessons {
                 linkAt(10, "den ersten Arbeitstag", "ilk iş günü", "den ersten Arbeitstag → ilk iş günü. Artikel + sıfat + isim aynı isim grubudur."),
                 linkAt(11, "ihren Platz", "yerini", "ihren Platz → yerini. İyelik belirleyicisi + isim aynı isim grubudur."),
                 linkAt(11, "den Kollegen", "çalışma arkadaşları", "den Kollegen → çalışma arkadaşları. Dativ çoğul artikel + isim aynı isim grubudur."),
+                linkAt(12, "ihre Aufgaben", "görevlerini", "ihre Aufgaben → onun görevleri / görevlerini. İyelik belirleyicisi + isim aynı isim grubudur; seçilen koyu, diğer kelime açık vurgulanır."),
                 strongAt(13, "spricht mit über", "mit jemandem über etwas sprechen", "mit jemandem über etwas sprechen → biriyle bir şey hakkında konuşmak. Bu cümlede spricht + mit + über birlikte güçlü gruptur."),
                 linkAt(13, "einer anderen Person", "başka bir kişi", "einer anderen Person → başka bir kişi. Belirsiz artikel + sıfat + isim aynı isim grubudur; seçilen koyu, diğerleri açık vurgulanır."),
                 linkAt(13, "den nächsten Schritt", "bir sonraki adım", "den nächsten Schritt → bir sonraki adım. Artikel + sıfat + isim aynı isim grubudur; seçilen koyu, diğerleri açık vurgulanır."),

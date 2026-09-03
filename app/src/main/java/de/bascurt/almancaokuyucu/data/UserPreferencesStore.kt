@@ -64,6 +64,12 @@ class UserPreferencesStore(context: Context) {
         prefs.edit().putStringSet("read_lessons", updated).apply()
     }
 
+    fun toggleLessonRead(id: String) {
+        val current = readLessonIds()
+        val updated = if (id in current) current - id else current + id
+        prefs.edit().putStringSet("read_lessons", updated).apply()
+    }
+
     fun loadStats(): LearningStats = LearningStats(
         answered = prefs.getInt("answered", 0),
         correct = prefs.getInt("correct", 0),
