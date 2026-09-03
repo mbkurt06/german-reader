@@ -450,8 +450,16 @@ private fun StoryScreen(
                         selected.strongLinkId == token.lexeme.strongLinkId
                     val active = highlightEnabled && sameSentence &&
                         (selected?.id == token.lexeme.id || sameStrongGroup)
-                    val linked = highlightEnabled && sameSentence && !active && selected?.contextLinkId != null &&
-                        selected.contextLinkId == token.lexeme.contextLinkId
+                    val selectedContextLinks = buildSet {
+                        selected?.contextLinkId?.let { add(it) }
+                        selected?.contextLinkIds?.let { addAll(it) }
+                    }
+                    val tokenContextLinks = buildSet {
+                        token.lexeme.contextLinkId?.let { add(it) }
+                        addAll(token.lexeme.contextLinkIds)
+                    }
+                    val linked = highlightEnabled && sameSentence && !active &&
+                        selectedContextLinks.isNotEmpty() && selectedContextLinks.any { it in tokenContextLinks }
                     Text(
                         token.text,
                         fontSize = textSize.sp,
