@@ -370,13 +370,31 @@ private fun MeaningPanel(selected: Lexeme?, isSaved: Boolean, detailed: Boolean,
                 Spacer(Modifier.height(5.dp))
                 Text("Anlamı, kelime türü ve kullanım bilgisi burada görünecek.", color = Color(0xFFD5E4E8), fontSize = 15.sp)
             } else {
-                Text(wordDisplayTitle(selected), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
-                Text(selected.meaning, color = Color.White, fontSize = 18.sp)
-                Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) { DarkPill("Kelime türü: ${selected.wordClass}"); selected.grammar?.let { DarkPill(it) } }
-                MorphologyDetails(selected)
-                if (detailed) selected.explanation?.let { Spacer(Modifier.height(7.dp)); Text(it, color = Color(0xFFD5E4E8), fontSize = 14.sp, lineHeight = 19.sp) }
-                selected.contextUsage?.let { Spacer(Modifier.height(7.dp)); DetailLine("Bu cümlede", it) }
+                Text(dictionaryHeadword(selected), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    DarkPill("Kelime türü: ${selected.wordClass}")
+                    selected.grammar?.let { DarkPill(it) }
+                }
+                if (selected.wordClass == "İsim") {
+                    DetailLine("Artikel", selected.article ?: "—")
+                    DetailLine("Çoğul", nounPluralDisplay(selected))
+                    selected.accusativeNote?.let { DetailLine("Akkusativ", it) }
+                } else {
+                    MorphologyDetails(selected)
+                }
+                Spacer(Modifier.height(4.dp))
+                DetailLine("Anlam", selected.meaning)
+                selected.contextUsage?.let {
+                    Spacer(Modifier.height(7.dp))
+                    HorizontalDivider(color = Color.White.copy(alpha = .16f))
+                    Spacer(Modifier.height(4.dp))
+                    DetailLine("Bu cümlede", it)
+                }
+                if (detailed) selected.explanation?.let {
+                    Spacer(Modifier.height(7.dp))
+                    Text(it, color = Color(0xFFD5E4E8), fontSize = 14.sp, lineHeight = 19.sp)
+                }
                 Spacer(Modifier.height(8.dp))
             }
         }
@@ -386,7 +404,6 @@ private fun MeaningPanel(selected: Lexeme?, isSaved: Boolean, detailed: Boolean,
 @Composable private fun MorphologyDetails(item: Lexeme) {
     when (item.wordClass) {
         "Fiil" -> { item.infinitive?.let { DetailLine("Mastar", it) }; item.thirdPerson?.let { DetailLine("3. tekil şahıs", it) }; item.preterite?.let { DetailLine("Präteritum", it) }; item.perfect?.let { DetailLine("Perfekt", it) } }
-        "İsim" -> { item.article?.let { DetailLine("Artikel", it) }; item.plural?.let { DetailLine("Çoğul", pluralNotation(item.base, it)) }; item.accusativeNote?.let { DetailLine("Akkusativ", it) } }
         "Sıfat" -> { item.positive?.let { DetailLine("Yalın hâl", it) }; item.comparative?.let { DetailLine("Komparativ", it) }; item.superlative?.let { DetailLine("Superlativ", it) } }
     }
 }
@@ -438,8 +455,14 @@ private fun StoryScreen(
                 }
                 Spacer(Modifier.width(9.dp))
                 Text(lesson.title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1)
-                TextButton(onClick = { showTranslations = !showTranslations }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {
-                    Text(if (showTranslations) "TR ✓" else "TR", fontWeight = FontWeight.Bold)
+                Button(
+                    onClick = { showTranslations = !showTranslations },
+                    modifier = Modifier.height(36.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (showTranslations) Dark else Turquoise, contentColor = Color.White),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Text(if (showTranslations) "Çeviriyi Gizle" else "Çeviri", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -845,7 +868,7 @@ private fun SettingsScreen(prefs: UserPreferences, onSave: (UserPreferences) -> 
         SettingCard("Görünüm") {
             Text("Tema", fontWeight = FontWeight.Bold)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("system" to "Sistem", "light" to "Açık", "dark" to "Karanlık").forEach { (id, label) -> FilterChip(selected = prefs.themeMode == id, onClick = { onSave(prefs.copy(themeMode = id)) }, label = { Text(label) }) }
+                listOf("system" to "Sistem", "light" to "Açık", "dark" to "Karanlık").forEach { (id, label) -> FilterChip(selected = prefs.themeMode == id, onClick = { onSave(prefs.copy(themeMode = id)) }, label = { Text(label) }) } }
             }
             Spacer(Modifier.height(12.dp))
             Text("Arayüz yazı boyutu", fontWeight = FontWeight.Bold)
@@ -1023,6 +1046,17 @@ private fun buildFillBlankCases(items: List<Lexeme>, lessons: List<ReaderLesson>
 }
 
 private fun normalizeAnswer(text: String): String = text.lowercase().replace("…", " ").replace("...", " ").replace(Regex("[.,:;!?]"), "").replace(Regex("\\s+"), " ").trim()
+
+private fun dictionaryHeadword(item: Lexeme): String {
+    if (item.wordClass != "İsim") return item.base
+    return "${item.article ?: "—"} ${item.base}"
+}
+
+private fun nounPluralDisplay(item: Lexeme): String {
+    val plural = item.plural?.trim().orEmpty()
+    if (plural.isBlank() || plural == "—" || plural == "-") return "—"
+    return "die $plural"
+}
 
 private fun wordDisplayTitle(item: Lexeme): String {
     if (item.wordClass != "İsim") return item.base
