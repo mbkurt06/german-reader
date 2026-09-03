@@ -52,9 +52,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
-    val firebaseBom = platform("com.google.firebase:firebase-bom:34.18.0")
-    implementation(firebaseBom)
-    implementation("com.google.firebase:firebase-auth")
+    // 24.0.1 remains compatible with the project's Kotlin 2.0.21 toolchain.
+    implementation("com.google.firebase:firebase-auth:24.0.1")
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
