@@ -40,6 +40,7 @@ internal object FocusedLessons {
                 "Son olarak yerini topluyor ve günü memnun bir şekilde bitiriyor."
             ),
             phrases = listOf(
+                linkAt(0, "ihre neue Arbeit", "yeni işi", "ihre neue Arbeit → onun yeni işi. Bu isim grubunda ihre iyelik bildirir, neue sıfattır ve Arbeit isimdir; seçilen kelime koyu, aynı isim grubundaki diğer kelimeler bağlantılı olarak açık vurgulanır."),
                 link("im Hotel", "otelde", "im Hotel → otelde. im = in + dem; bir yerin içinde bulunmayı anlatır."),
                 link("am Morgen", "sabah", "am Morgen → sabah / sabahleyin. am = an + dem; burada zaman bildirir."),
                 link("die ersten Fragen von den Gästen", "misafirlerin ilk soruları", "die ersten Fragen von den Gästen → misafirlerin ilk soruları. von burada soruların kimden geldiğini / kime ait olduğunu bağlar."),
@@ -235,6 +236,14 @@ internal object FocusedLessons {
                 phrase("nach Hause", "eve", "Yön bildirir: eve doğru.")
             )
         )
+    )
+
+    private fun linkAt(sentenceIndex: Int, text: String, meaning: String, explanation: String) = ContextPhrase(
+        words = text.lowercase().split(" "),
+        meaning = meaning,
+        explanation = explanation,
+        weakLink = true,
+        sentenceIndex = sentenceIndex
     )
 
     private fun strongAt(sentenceIndex: Int, text: String, meaning: String, explanation: String) = ContextPhrase(

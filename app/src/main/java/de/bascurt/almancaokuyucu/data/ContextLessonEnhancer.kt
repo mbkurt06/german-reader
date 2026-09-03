@@ -41,7 +41,7 @@ internal object ContextLessonEnhancer {
     ): List<ReadingToken> {
         val result = sentence.toMutableList()
         val keys = sentence.map { clean(it.text) }
-        phrases.sortedByDescending { it.words.size }.forEach { phrase ->
+        phrases.sortedWith(compareBy<ContextPhrase> { it.strongLink }.thenByDescending { it.words.size }).forEach { phrase ->
             if (phrase.sentenceIndex != null && phrase.sentenceIndex != sentenceIndex) return@forEach
             val wanted = phrase.words.map { it.lowercase() }
             if (wanted.isEmpty() || wanted.size > keys.size) return@forEach
