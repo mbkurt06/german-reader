@@ -12,7 +12,9 @@ data class UserPreferences(
     val uiScale: Float = 1f,
     val highlightEnabled: Boolean = true,
     val detailedExplanations: Boolean = true,
-    val quizQuestionCount: Int = 10
+    val quizQuestionCount: Int = 10,
+    val appLanguage: String = "tr",
+    val translationLanguage: String = "tr"
 )
 
 data class LearningStats(
@@ -40,7 +42,9 @@ class UserPreferencesStore(context: Context) {
         uiScale = prefs.getFloat("ui_scale", 1f),
         highlightEnabled = prefs.getBoolean("highlight_enabled", true),
         detailedExplanations = prefs.getBoolean("detailed_explanations", true),
-        quizQuestionCount = prefs.getInt("quiz_question_count", 10)
+        quizQuestionCount = prefs.getInt("quiz_question_count", 10),
+        appLanguage = prefs.getString("app_language", "tr") ?: "tr",
+        translationLanguage = prefs.getString("translation_language", "tr") ?: "tr"
     )
 
     fun save(value: UserPreferences) {
@@ -54,6 +58,8 @@ class UserPreferencesStore(context: Context) {
             .putBoolean("highlight_enabled", value.highlightEnabled)
             .putBoolean("detailed_explanations", value.detailedExplanations)
             .putInt("quiz_question_count", value.quizQuestionCount)
+            .putString("app_language", value.appLanguage)
+            .putString("translation_language", value.translationLanguage)
             .apply()
     }
 
@@ -106,12 +112,6 @@ class UserPreferencesStore(context: Context) {
             .apply()
     }
 
-    /**
-     * Adaptive 10-word selector.
-     * Unseen words come first. Previously missed words receive a strong boost,
-     * while words with a long correct streak are gradually spaced out.
-     * A small age bonus brings older reviewed words back over time.
-     */
     fun selectStudyItems(candidates: List<Lexeme>, limit: Int = 10): List<Lexeme> {
         val unique = candidates.distinctBy { it.id }
         val now = System.currentTimeMillis()
