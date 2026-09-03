@@ -1,0 +1,223 @@
+from pathlib import Path
+
+# 1) Automatic noun-phrase and preposition-object weak links.
+p = Path('app/src/main/java/de/bascurt/almancaokuyucu/data/ContextLessonEnhancer.kt')
+s = p.read_text()
+old = '''        return result
+    }
+
+    private fun clean(text: String): String = text
+'''
+new = '''        return applyAutomaticLinks(lessonId, sentenceIndex, result)
+    }
+
+    private fun applyAutomaticLinks(
+        lessonId: String,
+        sentenceIndex: Int,
+        sentence: MutableList<ReadingToken>
+    ): List<ReadingToken> {
+        val nounPrefixClasses = setOf("Artikel", "Belirleyici", "Sıfat", "Zamir")
+
+        fun addWeakLink(indices: List<Int>, relation: String): String? {
+            if (indices.size < 2) return null
+            val linkId = "$lessonId-auto-$sentenceIndex-$relation-${indices.first()}-${indices.last()}"
+            indices.distinct().forEach { index ->
+                val original = sentence[index].lexeme
+                sentence[index] = sentence[index].copy(lexeme = original.copy(
+                    contextLinkId = original.contextLinkId ?: linkId,
+                    contextLinkIds = (original.contextLinkIds + linkId).distinct()
+                ))
+            }
+            return linkId
+        }
+
+        for (nounIndex in sentence.indices) {
+            if (sentence[nounIndex].lexeme.wordClass != "İsim") continue
+            var start = nounIndex
+            var cursor = nounIndex - 1
+            while (cursor >= 0 && sentence[cursor].lexeme.wordClass in nounPrefixClasses) {
+                start = cursor
+                cursor--
+            }
+            if (start < nounIndex) addWeakLink((start..nounIndex).toList(), "noun")
+        }
+
+        for (prepIndex in sentence.indices) {
+            if (sentence[prepIndex].lexeme.wordClass != "Edat") continue
+            val objectIndices = mutableListOf<Int>()
+            var cursor = prepIndex + 1
+            while (cursor < sentence.size && cursor <= prepIndex + 4) {
+                val wc = sentence[cursor].lexeme.wordClass
+                if (wc == "İsim") {
+                    objectIndices += cursor
+                    break
+                }
+                if (wc in nounPrefixClasses) {
+                    objectIndices += cursor
+                    cursor++
+                    continue
+                }
+                break
+            }
+            if (objectIndices.isEmpty() || sentence[objectIndices.last()].lexeme.wordClass != "İsim") continue
+            val relationIndices = mutableListOf(prepIndex).apply { addAll(objectIndices) }
+            val relationLink = addWeakLink(relationIndices, "prep") ?: continue
+
+            val strongId = sentence[prepIndex].lexeme.strongLinkId
+            if (strongId != null) {
+                sentence.indices.filter { sentence[it].lexeme.strongLinkId == strongId }.forEach { index ->
+                    val original = sentence[index].lexeme
+                    sentence[index] = sentence[index].copy(lexeme = original.copy(
+                        contextLinkId = original.contextLinkId ?: relationLink,
+                        contextLinkIds = (original.contextLinkIds + relationLink).distinct()
+                    ))
+                }
+            }
+        }
+        return sentence
+    }
+
+    private fun clean(text: String): String = text
+'''
+if old not in s:
+    raise SystemExit('ContextLessonEnhancer return anchor not found')
+s = s.replace(old, new, 1)
+p.write_text(s)
+
+# 2) Compact fixed reader header.
+p = Path('app/src/main/java/de/bascurt/almancaokuyucu/MainActivity.kt')
+s = p.read_text()
+old = '''    var showTranslations by remember(lesson.id) { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LevelBadge(lesson.level)
+                Spacer(Modifier.width(12.dp))
+                Text(lesson.title, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = { showTranslations = !showTranslations },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(15.dp)
+            ) {
+                Text(if (showTranslations) "Çeviriyi gizle" else "Çevirisi", fontWeight = FontWeight.SemiBold)
+            }
+        }
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 110.dp)) {
+'''
+new = '''    var showTranslations by remember(lesson.id) { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize()) {
+        Surface(tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(color = levelColor(lesson.level), shape = RoundedCornerShape(10.dp)) {
+                    Text(lesson.level, Modifier.padding(horizontal = 9.dp, vertical = 5.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF203038))
+                }
+                Spacer(Modifier.width(9.dp))
+                Text(lesson.title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1)
+                TextButton(onClick = { showTranslations = !showTranslations }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {
+                    Text(if (showTranslations) "TR ✓" else "TR", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 110.dp)) {
+'''
+if old not in s:
+    raise SystemExit('Compact reader header anchor not found')
+s = s.replace(old, new, 1)
+
+# 3) Grammar tab: story-level A2 rules instead of lexeme list.
+old = '''@Composable private fun GrammarScreen(lesson: ReaderLesson) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        lesson.grammarItems.forEach { item ->
+            ElevatedCard(shape = RoundedCornerShape(18.dp)) {
+                Column(Modifier.fillMaxWidth().padding(15.dp)) {
+                    Text(item.base, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(item.meaning, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) { LightPill(item.wordClass); item.grammar?.let { LightPill(it) } }
+                    item.explanation?.let { Text(it, Modifier.padding(top = 8.dp), fontSize = 14.sp) }
+                }
+            }
+        }
+    }
+}
+'''
+new = '''private data class StoryGrammarRule(val title: String, val explanation: String, val example: String)
+
+private fun storyGrammarRules(lesson: ReaderLesson): List<StoryGrammarRule> {
+    val text = lesson.sentences.joinToString(" ") { sentence -> sentence.joinToString(" ") { it.text } }.lowercase()
+    val rules = mutableListOf<StoryGrammarRule>()
+
+    if (Regex("\\b(weil|wenn|dass|während|obwohl|bevor)\\b").containsMatchIn(text)) {
+        rules += StoryGrammarRule(
+            "Yan cümlede fiilin yeri",
+            "weil, wenn, dass, während gibi bağlaçlarla kurulan yan cümlede çekimli fiil genellikle cümlenin sonuna gider.",
+            lesson.sentences.firstOrNull { sentence -> sentence.any { it.text.lowercase().trim('.,') in setOf("weil", "wenn", "dass", "während", "obwohl", "bevor") } }?.joinToString(" ") { it.text } ?: ""
+        )
+    }
+
+    if (Regex("\\b(möchte|möchten|kann|können|muss|müssen|soll|sollen|will|wollen|darf|dürfen)\\b").containsMatchIn(text)) {
+        rules += StoryGrammarRule(
+            "Modal fiil + mastar",
+            "Modal fiil çekimlenir; asıl fiil mastar hâlinde çoğunlukla cümlenin sonunda bulunur.",
+            lesson.sentences.firstOrNull { sentence -> sentence.any { Regex("^(möchte|möchten|kann|können|muss|müssen|soll|sollen|will|wollen|darf|dürfen)[.,]?$", RegexOption.IGNORE_CASE).matches(it.text) } }?.joinToString(" ") { it.text } ?: ""
+        )
+    }
+
+    val hasSeparable = lesson.sentences.flatten().any { it.lexeme.contextUsage?.contains("Ayrılabilir", ignoreCase = true) == true }
+    if (hasSeparable || Regex("\\b(auf|zu|ein|aus|ab|weg|zurück)\\b").containsMatchIn(text)) {
+        rules += StoryGrammarRule(
+            "Ayrılabilir fiiller",
+            "Ana cümlede ayrılabilir fiilin çekimli kısmı normal fiil yerinde durur; ayrılan ön ek cümlenin ilerisine gider.",
+            lesson.sentences.firstOrNull { sentence -> sentence.count { it.lexeme.strongLinkId != null } >= 2 }?.joinToString(" ") { it.text } ?: ""
+        )
+    }
+
+    if (Regex("\\b(mit|nach|von|bei|über|für|an|auf|in)\\b").containsMatchIn(text)) {
+        rules += StoryGrammarRule(
+            "Edatlar ve hâller",
+            "Bazı edatlar belirli bir hâl ister. Örneğin mit, nach, von ve bei çoğunlukla Dativ; für ise Akkusativ alır. an, auf, in ve über gibi Wechselpräpositionen kullanıma göre hâl değiştirir.",
+            lesson.sentences.firstOrNull { sentence -> sentence.any { it.lexeme.wordClass == "Edat" } }?.joinToString(" ") { it.text } ?: ""
+        )
+    }
+
+    if (rules.isEmpty()) {
+        rules += StoryGrammarRule(
+            "Cümlede fiilin yeri",
+            "A2 düzeyindeki normal ana cümlede çekimli fiil çoğunlukla ikinci konumdadır. Cümle zaman ifadesiyle başlasa bile fiilin yeri korunur.",
+            lesson.sentences.firstOrNull()?.joinToString(" ") { it.text } ?: ""
+        )
+    }
+    return rules.distinctBy { it.title }.take(2)
+}
+
+@Composable private fun GrammarScreen(lesson: ReaderLesson) {
+    val rules = remember(lesson.id) { storyGrammarRules(lesson) }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Bu hikâyede öne çıkan gramer", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text("Kelime listesi yerine, metinde gerçekten kullanılan ${lesson.level} düzeyine uygun temel kurallar.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+        rules.forEach { rule ->
+            ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(rule.title, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(7.dp))
+                    Text(rule.explanation, color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 21.sp)
+                    if (rule.example.isNotBlank()) {
+                        Spacer(Modifier.height(10.dp))
+                        Surface(color = Turquoise.copy(alpha = .10f), shape = RoundedCornerShape(12.dp)) {
+                            Text("Örnek: ${rule.example}", Modifier.padding(11.dp), fontSize = 14.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+'''
+if old not in s:
+    raise SystemExit('GrammarScreen anchor not found')
+s = s.replace(old, new, 1)
+p.write_text(s)
