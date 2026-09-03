@@ -14,6 +14,7 @@ data class UserPreferences(
     val themeMode: String = "system",
     val storyTextSize: Int = 22,
     val readerBrightness: Float = 1f,
+    val readerThemeMode: String = "app",
     val readerNightMode: Boolean = false,
     val uiScale: Float = 1f,
     val highlightEnabled: Boolean = true,
@@ -39,25 +40,30 @@ data class WordStudyProgress(
 class UserPreferencesStore(context: Context) {
     private val prefs = context.getSharedPreferences("user_preferences", Context.MODE_PRIVATE)
 
-    fun load(): UserPreferences = UserPreferences(
-        name = prefs.getString("name", "Zeynep") ?: "Zeynep",
-        username = prefs.getString("username", "zeynep") ?: "zeynep",
-        bio = prefs.getString("bio", "") ?: "",
-        profilePhotoUri = prefs.getString("profile_photo_uri", "") ?: "",
-        learningReason = prefs.getString("learning_reason", "Günlük Almanca") ?: "Günlük Almanca",
-        germanLevel = prefs.getString("german_level", "A2") ?: "A2",
-        dailyGoal = prefs.getInt("daily_goal", 10),
-        themeMode = prefs.getString("theme_mode", "system") ?: "system",
-        storyTextSize = prefs.getInt("story_text_size", 22),
-        readerBrightness = prefs.getFloat("reader_brightness", 1f),
-        readerNightMode = prefs.getBoolean("reader_night_mode", false),
-        uiScale = prefs.getFloat("ui_scale", 1f),
-        highlightEnabled = prefs.getBoolean("highlight_enabled", true),
-        detailedExplanations = prefs.getBoolean("detailed_explanations", true),
-        quizQuestionCount = prefs.getInt("quiz_question_count", 10),
-        appLanguage = prefs.getString("app_language", "tr") ?: "tr",
-        translationLanguage = prefs.getString("translation_language", "tr") ?: "tr"
-    )
+    fun load(): UserPreferences {
+        val legacyNightMode = prefs.getBoolean("reader_night_mode", false)
+        val savedReaderTheme = prefs.getString("reader_theme_mode", null)
+        return UserPreferences(
+            name = prefs.getString("name", "Zeynep") ?: "Zeynep",
+            username = prefs.getString("username", "zeynep") ?: "zeynep",
+            bio = prefs.getString("bio", "") ?: "",
+            profilePhotoUri = prefs.getString("profile_photo_uri", "") ?: "",
+            learningReason = prefs.getString("learning_reason", "Günlük Almanca") ?: "Günlük Almanca",
+            germanLevel = prefs.getString("german_level", "A2") ?: "A2",
+            dailyGoal = prefs.getInt("daily_goal", 10),
+            themeMode = prefs.getString("theme_mode", "system") ?: "system",
+            storyTextSize = prefs.getInt("story_text_size", 22),
+            readerBrightness = prefs.getFloat("reader_brightness", 1f),
+            readerThemeMode = savedReaderTheme ?: if (legacyNightMode) "dark" else "app",
+            readerNightMode = legacyNightMode,
+            uiScale = prefs.getFloat("ui_scale", 1f),
+            highlightEnabled = prefs.getBoolean("highlight_enabled", true),
+            detailedExplanations = prefs.getBoolean("detailed_explanations", true),
+            quizQuestionCount = prefs.getInt("quiz_question_count", 10),
+            appLanguage = prefs.getString("app_language", "tr") ?: "tr",
+            translationLanguage = prefs.getString("translation_language", "tr") ?: "tr"
+        )
+    }
 
     fun save(value: UserPreferences) {
         prefs.edit()
@@ -71,7 +77,8 @@ class UserPreferencesStore(context: Context) {
             .putString("theme_mode", value.themeMode)
             .putInt("story_text_size", value.storyTextSize)
             .putFloat("reader_brightness", value.readerBrightness)
-            .putBoolean("reader_night_mode", value.readerNightMode)
+            .putString("reader_theme_mode", value.readerThemeMode)
+            .putBoolean("reader_night_mode", value.readerThemeMode == "dark")
             .putFloat("ui_scale", value.uiScale)
             .putBoolean("highlight_enabled", value.highlightEnabled)
             .putBoolean("detailed_explanations", value.detailedExplanations)
