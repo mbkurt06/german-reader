@@ -1,6 +1,7 @@
 package de.bascurt.almancaokuyucu.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -46,7 +47,7 @@ class LessonVocabularyAuditTest {
 
     @Test
     fun nounPhraseSelectionKeepsIndividualWordsButLinksTheGroup() {
-        val sentence = SampleLessons.all.first().sentences[6] // eine kurze Pause
+        val sentence = SampleLessons.all.first().sentences[6]
         val eine = sentence.first { clean(it.text) == "eine" }
         val kurze = sentence.first { clean(it.text) == "kurze" }
         val pause = sentence.first { clean(it.text) == "pause" }
@@ -58,7 +59,7 @@ class LessonVocabularyAuditTest {
     }
 
     @Test
-    fun fragenNachLinksVerbStronglyAndObjectWeakly() {
+    fun fragenNachOnlyLinksVerbAndPrepositionStrongly() {
         val sentence = SampleLessons.all.first().sentences[4]
         val fragt = sentence.first { clean(it.text) == "fragt" }
         val nach = sentence.first { clean(it.text) == "nach" }
@@ -67,22 +68,33 @@ class LessonVocabularyAuditTest {
 
         assertNotNull(fragt.lexeme.strongLinkId)
         assertEquals(fragt.lexeme.strongLinkId, nach.lexeme.strongLinkId)
-        assertTrue(sharedContextLink(nach.lexeme.contextLinkIds, fruehstueck.lexeme.contextLinkIds))
+        assertFalse(sharedContextLink(nach.lexeme.contextLinkIds, dem.lexeme.contextLinkIds))
+        assertFalse(sharedContextLink(nach.lexeme.contextLinkIds, fruehstueck.lexeme.contextLinkIds))
         assertTrue(sharedContextLink(dem.lexeme.contextLinkIds, fruehstueck.lexeme.contextLinkIds))
     }
 
     @Test
-    fun sprechenMitUeberIsOneStrongGroupAndObjectRemainsWeakContext() {
+    fun sprechenMitUeberStrongGroupDoesNotCaptureItsObjects() {
         val sentence = SampleLessons.all.first().sentences[10]
         val spricht = sentence.first { clean(it.text) == "spricht" }
         val mit = sentence.first { clean(it.text) == "mit" }
         val ueber = sentence.first { clean(it.text) == "über" }
+        val ihrer = sentence.first { clean(it.text) == "ihrer" }
+        val chefin = sentence.first { clean(it.text) == "chefin" }
+        val den = sentence.first { clean(it.text) == "den" }
+        val ersten = sentence.first { clean(it.text) == "ersten" }
         val arbeitstag = sentence.first { clean(it.text) == "arbeitstag" }
 
         assertNotNull(spricht.lexeme.strongLinkId)
         assertEquals(spricht.lexeme.strongLinkId, mit.lexeme.strongLinkId)
         assertEquals(spricht.lexeme.strongLinkId, ueber.lexeme.strongLinkId)
-        assertTrue(sharedContextLink(ueber.lexeme.contextLinkIds, arbeitstag.lexeme.contextLinkIds))
+
+        assertFalse(sharedContextLink(mit.lexeme.contextLinkIds, chefin.lexeme.contextLinkIds))
+        assertFalse(sharedContextLink(ueber.lexeme.contextLinkIds, arbeitstag.lexeme.contextLinkIds))
+
+        assertTrue(sharedContextLink(ihrer.lexeme.contextLinkIds, chefin.lexeme.contextLinkIds))
+        assertTrue(sharedContextLink(den.lexeme.contextLinkIds, ersten.lexeme.contextLinkIds))
+        assertTrue(sharedContextLink(ersten.lexeme.contextLinkIds, arbeitstag.lexeme.contextLinkIds))
     }
 
     private fun sharedContextLink(first: List<String>, second: List<String>): Boolean =
