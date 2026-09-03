@@ -34,7 +34,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -237,8 +236,8 @@ private fun LocalProfileEditor(
                 Box(contentAlignment = Alignment.Center) { Text("−", fontSize = 24.sp, fontWeight = FontWeight.SemiBold) }
             }
             Spacer(Modifier.weight(1f))
-            Surface(color = ProfileTurquoise.copy(alpha = .13f), shape = RoundedCornerShape(11.dp)) {
-                Text("${goal.toInt()} soru", Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = ProfileTurquoise, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Surface(color = MaterialTheme.colorScheme.primary.copy(alpha = .13f), shape = RoundedCornerShape(11.dp)) {
+                Text("${goal.toInt()} soru", Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.primary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.weight(1f))
             Surface(color = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface, shape = CircleShape, modifier = Modifier.size(54.dp).clickable(enabled = goal < 50f) { goal = (goal + 5f).coerceAtMost(50f) }) {
