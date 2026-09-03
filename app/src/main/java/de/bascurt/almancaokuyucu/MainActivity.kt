@@ -423,14 +423,23 @@ private fun StoryScreen(
     onComplete: () -> Unit,
     onSelect: (Lexeme) -> Unit
 ) {
+    var showTranslations by remember(lesson.id) { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 110.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             LevelBadge(lesson.level)
             Spacer(Modifier.width(12.dp))
-            Text(lesson.title, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text(lesson.title, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         }
-        Spacer(Modifier.height(22.dp))
-        lesson.sentences.forEach { sentence ->
+        Spacer(Modifier.height(12.dp))
+        OutlinedButton(
+            onClick = { showTranslations = !showTranslations },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(15.dp)
+        ) {
+            Text(if (showTranslations) "Çeviriyi gizle" else "Çevirisi", fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.height(18.dp))
+        lesson.sentences.forEachIndexed { sentenceIndex, sentence ->
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 sentence.forEach { token ->
                     val active = highlightEnabled && selected?.id == token.lexeme.id
@@ -440,6 +449,18 @@ private fun StoryScreen(
                         lineHeight = (textSize + 10).sp,
                         color = if (active) Color.White else MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.background(if (active) Turquoise else Color.Transparent, RoundedCornerShape(7.dp)).clickable { onSelect(token.lexeme) }.padding(horizontal = 2.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            if (showTranslations) {
+                lesson.translations.getOrNull(sentenceIndex)?.let { translation ->
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        translation,
+                        fontSize = (textSize - 3).coerceAtLeast(14).sp,
+                        lineHeight = (textSize + 5).sp,
+                        color = Turquoise,
+                        modifier = Modifier.fillMaxWidth().padding(start = 2.dp)
                     )
                 }
             }
