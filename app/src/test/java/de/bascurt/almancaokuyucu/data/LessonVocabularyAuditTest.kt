@@ -46,6 +46,24 @@ class LessonVocabularyAuditTest {
     }
 
     @Test
+    fun everyNounHasArticleAndPluralMetadata() {
+        SampleLessons.all.forEach { lesson ->
+            lesson.sentences.flatten()
+                .filter { it.lexeme.wordClass == "İsim" }
+                .forEach { token ->
+                    assertTrue(
+                        "${lesson.title}: '${token.text}' isminin artikeli eksik",
+                        !token.lexeme.article.isNullOrBlank()
+                    )
+                    assertTrue(
+                        "${lesson.title}: '${token.text}' isminin çoğul bilgisi eksik",
+                        !token.lexeme.plural.isNullOrBlank()
+                    )
+                }
+        }
+    }
+
+    @Test
     fun nounPhraseSelectionKeepsIndividualWordsButLinksTheGroup() {
         val sentence = SampleLessons.all.first().sentences[6]
         val eine = sentence.first { clean(it.text) == "eine" }
