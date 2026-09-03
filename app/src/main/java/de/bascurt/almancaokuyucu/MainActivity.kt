@@ -945,7 +945,7 @@ private fun storyGrammarRules(lesson: ReaderLesson): List<StoryGrammarRule> {
         rules += StoryGrammarRule(
             "Yan cümlede fiilin yeri",
             "weil, wenn, dass, während gibi bağlaçlarla kurulan yan cümlede çekimli fiil genellikle cümlenin sonuna gider.",
-            lesson.sentences.firstOrNull { sentence -> sentence.any { it.text.lowercase().trim('.,') in setOf("weil", "wenn", "dass", "während", "obwohl", "bevor") } }?.joinToString(" ") { it.text } ?: ""
+            lesson.sentences.firstOrNull { sentence -> sentence.any { it.text.lowercase().trim('.', ',') in setOf("weil", "wenn", "dass", "während", "obwohl", "bevor") } }?.joinToString(" ") { it.text } ?: ""
         )
     }
 
