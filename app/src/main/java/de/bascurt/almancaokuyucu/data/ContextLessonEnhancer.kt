@@ -85,7 +85,8 @@ internal object ContextLessonEnhancer {
                         val original = result[index].lexeme
                         result[index] = result[index].copy(lexeme = original.copy(
                             id = "${original.id}-ctx-$sentenceIndex-$first-$index",
-                            contextLinkId = linkId,
+                            contextLinkId = original.contextLinkId ?: linkId,
+                            contextLinkIds = (original.contextLinkIds + linkId).distinct(),
                             contextUsage = phrase.explanation
                         ))
                     }
