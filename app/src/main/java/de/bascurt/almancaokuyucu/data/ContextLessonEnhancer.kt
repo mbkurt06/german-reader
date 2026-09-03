@@ -78,6 +78,8 @@ internal object ContextLessonEnhancer {
                         result[index] = result[index].copy(lexeme = original.copy(
                             id = "${original.id}-strong-$sentenceIndex-$first-$index",
                             strongLinkId = linkId,
+                            contextLinkId = null,
+                            contextLinkIds = emptyList(),
                             contextUsage = phrase.explanation
                         ))
                     }
@@ -116,8 +118,8 @@ internal object ContextLessonEnhancer {
     ): List<ReadingToken> {
         val nounPrefixClasses = setOf("Artikel", "Belirleyici", "Sıfat", "Zamir")
 
-        fun addWeakLink(indices: List<Int>, relation: String): String? {
-            if (indices.size < 2) return null
+        fun addWeakLink(indices: List<Int>, relation: String) {
+            if (indices.size < 2) return
             val linkId = "$lessonId-auto-$sentenceIndex-$relation-${indices.first()}-${indices.last()}"
             indices.distinct().forEach { index ->
                 val original = sentence[index].lexeme
@@ -126,9 +128,9 @@ internal object ContextLessonEnhancer {
                     contextLinkIds = (original.contextLinkIds + linkId).distinct()
                 ))
             }
-            return linkId
         }
 
+        // Artikel / iyelik / sıfat + isim kendi içinde bağlı kalır.
         for (nounIndex in sentence.indices) {
             if (sentence[nounIndex].lexeme.wordClass != "İsim") continue
             var start = nounIndex
@@ -140,8 +142,12 @@ internal object ContextLessonEnhancer {
             if (start < nounIndex) addWeakLink((start..nounIndex).toList(), "noun")
         }
 
+        // Sadece normal edatlar nesne grubuyla hafif bağlantı kurar.
+        // Fiile ait güçlü gruptaki edatlar nesneden tamamen bağımsız tutulur.
         for (prepIndex in sentence.indices) {
             if (sentence[prepIndex].lexeme.wordClass != "Edat") continue
+            if (sentence[prepIndex].lexeme.strongLinkId != null) continue
+
             val objectIndices = mutableListOf<Int>()
             var cursor = prepIndex + 1
             while (cursor < sentence.size && cursor <= prepIndex + 4) {
@@ -158,19 +164,7 @@ internal object ContextLessonEnhancer {
                 break
             }
             if (objectIndices.isEmpty() || sentence[objectIndices.last()].lexeme.wordClass != "İsim") continue
-            val relationIndices = mutableListOf(prepIndex).apply { addAll(objectIndices) }
-            val relationLink = addWeakLink(relationIndices, "prep") ?: continue
-
-            val strongId = sentence[prepIndex].lexeme.strongLinkId
-            if (strongId != null) {
-                sentence.indices.filter { sentence[it].lexeme.strongLinkId == strongId }.forEach { index ->
-                    val original = sentence[index].lexeme
-                    sentence[index] = sentence[index].copy(lexeme = original.copy(
-                        contextLinkId = original.contextLinkId ?: relationLink,
-                        contextLinkIds = (original.contextLinkIds + relationLink).distinct()
-                    ))
-                }
-            }
+            addWeakLink(listOf(prepIndex) + objectIndices, "prep")
         }
         return sentence
     }
