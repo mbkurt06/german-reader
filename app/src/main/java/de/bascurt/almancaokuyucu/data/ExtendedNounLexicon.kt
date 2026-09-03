@@ -6,6 +6,7 @@ internal val extendedNounLexicon: Map<String, ExtendedNounSeed> = mapOf(
     "arbeit" to ExtendedNounSeed("Arbeit", "iş", "die", "Arbeiten"),
     "hotel" to ExtendedNounSeed("Hotel", "otel", "das", "Hotels"),
     "gäste" to ExtendedNounSeed("Gast", "misafir", "der", "Gäste"),
+    "gästen" to ExtendedNounSeed("Gast", "misafir", "der", "Gäste"),
     "fragen" to ExtendedNounSeed("Frage", "soru", "die", "Fragen"),
     "pause" to ExtendedNounSeed("Pause", "mola", "die", "Pausen"),
     "kollegen" to ExtendedNounSeed("Kollege", "iş arkadaşı", "der", "Kollegen"),
