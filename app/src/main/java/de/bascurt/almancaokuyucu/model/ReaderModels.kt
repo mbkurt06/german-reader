@@ -31,7 +31,8 @@ data class ReaderLesson(
     val title: String,
     val level: String,
     val summary: String,
-    val sentences: List<List<ReadingToken>>
+    val sentences: List<List<ReadingToken>>,
+    val translations: List<String> = emptyList()
 ) {
     val lexemes: List<Lexeme>
         get() = sentences.flatten().map { it.lexeme }.distinctBy { it.id }
