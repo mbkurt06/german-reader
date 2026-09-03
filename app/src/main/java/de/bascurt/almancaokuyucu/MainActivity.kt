@@ -1,5 +1,6 @@
 package de.bascurt.almancaokuyucu
 
+import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -123,6 +124,7 @@ private fun GermanReaderApp() {
                     isCompleted = currentLesson!!.id in completedLessonIds,
                     onToggleSaved = ::toggle,
                     onComplete = { completeLesson(currentLesson!!) },
+                    onPreferences = ::savePrefs,
                     onHome = { currentLesson = null }
                 )
                 page == AppPage.STUDY_DE_TR -> MeaningStudyScreen(studyItems, true, { page = AppPage.STUDY_MENU }, ::recordAnswer)
@@ -384,6 +386,7 @@ private fun ReaderScreen(
     isCompleted: Boolean,
     onToggleSaved: (Lexeme) -> Unit,
     onComplete: () -> Unit,
+    onPreferences: (UserPreferences) -> Unit,
     onHome: () -> Unit
 ) {
     var tab by remember(lesson.id) { mutableStateOf(ReaderTab.STORY) }
@@ -396,7 +399,20 @@ private fun ReaderScreen(
         ReaderTabs(tab, preferences.appLanguage) { tab = it }
         Box(Modifier.weight(1f)) {
             when (tab) {
-                ReaderTab.STORY -> StoryScreen(lesson, selected, selectedSentenceIndex, preferences.storyTextSize, preferences.highlightEnabled, preferences.translationLanguage, preferences.appLanguage, isCompleted, onComplete) { sentenceIndex, lexeme -> selectedSentenceIndex = sentenceIndex; selected = lexeme }
+                ReaderTab.STORY -> StoryScreen(
+                    lesson = lesson,
+                    selected = selected,
+                    selectedSentenceIndex = selectedSentenceIndex,
+                    textSize = preferences.storyTextSize,
+                    brightness = preferences.readerBrightness,
+                    highlightEnabled = preferences.highlightEnabled,
+                    translationLanguage = preferences.translationLanguage,
+                    appLanguage = preferences.appLanguage,
+                    isCompleted = isCompleted,
+                    onComplete = onComplete,
+                    onTextSizeChange = { onPreferences(preferences.copy(storyTextSize = it)) },
+                    onBrightnessChange = { onPreferences(preferences.copy(readerBrightness = it)) }
+                ) { sentenceIndex, lexeme -> selectedSentenceIndex = sentenceIndex; selected = lexeme }
                 ReaderTab.QUIZ -> QuizScreen(lesson, preferences.quizQuestionCount)
                 ReaderTab.WORDS -> LessonWordsScreen(lesson, saved, onToggleSaved)
                 ReaderTab.GRAMMAR -> GrammarScreen(lesson)
@@ -487,31 +503,91 @@ private fun StoryScreen(
     selected: Lexeme?,
     selectedSentenceIndex: Int,
     textSize: Int,
+    brightness: Float,
     highlightEnabled: Boolean,
     translationLanguage: String,
     appLanguage: String,
     isCompleted: Boolean,
     onComplete: () -> Unit,
+    onTextSizeChange: (Int) -> Unit,
+    onBrightnessChange: (Float) -> Unit,
     onSelect: (Int, Lexeme) -> Unit
 ) {
     var showTranslations by remember(lesson.id) { mutableStateOf(false) }
+    var showDisplayControls by remember(lesson.id) { mutableStateOf(false) }
     val translations = remember(lesson.id, translationLanguage) { StoryTranslationCatalog.translationsFor(lesson, translationLanguage) }
+    val activity = LocalContext.current as? Activity
+
+    DisposableEffect(activity, brightness) {
+        val window = activity?.window
+        val oldBrightness = window?.attributes?.screenBrightness ?: -1f
+        if (window != null) {
+            val params = window.attributes
+            params.screenBrightness = brightness.coerceIn(.08f, 1f)
+            window.attributes = params
+        }
+        onDispose {
+            if (window != null) {
+                val params = window.attributes
+                params.screenBrightness = oldBrightness
+                window.attributes = params
+            }
+        }
+    }
+
     Column(Modifier.fillMaxSize()) {
         Surface(tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                 Surface(color = levelColor(lesson.level), shape = RoundedCornerShape(10.dp)) {
-                    Text(lesson.level, Modifier.padding(horizontal = 9.dp, vertical = 5.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF203038))
+                    Text(lesson.level, Modifier.padding(horizontal = 8.dp, vertical = 5.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF203038))
                 }
-                Spacer(Modifier.width(9.dp))
-                Text(lesson.title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1)
+                Spacer(Modifier.width(7.dp))
+                Text(lesson.title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1)
+                Box {
+                    OutlinedButton(
+                        onClick = { showDisplayControls = true },
+                        modifier = Modifier.height(36.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp)
+                    ) { Text("Aa ☀", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                    DropdownMenu(
+                        expanded = showDisplayControls,
+                        onDismissRequest = { showDisplayControls = false },
+                        modifier = Modifier.width(270.dp)
+                    ) {
+                        Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Text("Yazı boyutu", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                Text("$textSize", color = Turquoise, fontWeight = FontWeight.Bold)
+                            }
+                            Slider(
+                                value = textSize.toFloat(),
+                                onValueChange = { onTextSizeChange(it.toInt()) },
+                                valueRange = 18f..30f,
+                                steps = 5
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Text("Aydınlatma", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                Text("${(brightness * 100).toInt()}%", color = Turquoise, fontWeight = FontWeight.Bold)
+                            }
+                            Slider(
+                                value = brightness,
+                                onValueChange = { onBrightnessChange(it.coerceIn(.08f, 1f)) },
+                                valueRange = .08f..1f
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.width(6.dp))
                 Button(
                     onClick = { showTranslations = !showTranslations },
                     modifier = Modifier.height(36.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = if (showTranslations) Dark else Turquoise, contentColor = Color.White),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                 ) {
-                    Text(if (showTranslations) uiText(appLanguage, "Çeviriyi Gizle") else uiText(appLanguage, "Çeviri"), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(if (showTranslations) uiText(appLanguage, "Çeviriyi Gizle") else uiText(appLanguage, "Çeviri"), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -921,8 +997,6 @@ private fun SettingsScreen(
                 Text(uiText(lang, "Arayüz yazı boyutu"), fontWeight = FontWeight.Bold)
                 Text("${(prefs.uiScale * 100).toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Slider(value = prefs.uiScale, onValueChange = { onChange(prefs.copy(uiScale = it)); savedNotice = false }, valueRange = .85f..1.25f)
-                Text("${uiText(lang, "Hikâye yazı boyutu")}: ${prefs.storyTextSize}", fontWeight = FontWeight.Bold)
-                Slider(value = prefs.storyTextSize.toFloat(), onValueChange = { onChange(prefs.copy(storyTextSize = it.toInt())); savedNotice = false }, valueRange = 18f..30f, steps = 5)
             }
             SettingCard(uiText(lang, "Okuma")) {
                 SwitchSetting(uiText(lang, "Seçilen kelimeyi vurgula"), prefs.highlightEnabled) { onChange(prefs.copy(highlightEnabled = it)); savedNotice = false }
@@ -1047,7 +1121,7 @@ private fun storyGrammarRules(lesson: ReaderLesson): List<StoryGrammarRule> {
     val text = lesson.sentences.joinToString(" ") { sentence -> sentence.joinToString(" ") { it.text } }.lowercase()
     val rules = mutableListOf<StoryGrammarRule>()
 
-    if (Regex("\\b(weil|wenn|dass|während|obwohl|bevor)\\b").containsMatchIn(text)) {
+    if (Regex("\b(weil|wenn|dass|während|obwohl|bevor)\b").containsMatchIn(text)) {
         rules += StoryGrammarRule(
             "Yan cümlede fiilin yeri",
             "weil, wenn, dass, während gibi bağlaçlarla kurulan yan cümlede çekimli fiil genellikle cümlenin sonuna gider.",
@@ -1055,7 +1129,7 @@ private fun storyGrammarRules(lesson: ReaderLesson): List<StoryGrammarRule> {
         )
     }
 
-    if (Regex("\\b(möchte|möchten|kann|können|muss|müssen|soll|sollen|will|wollen|darf|dürfen)\\b").containsMatchIn(text)) {
+    if (Regex("\b(möchte|möchten|kann|können|muss|müssen|soll|sollen|will|wollen|darf|dürfen)\b").containsMatchIn(text)) {
         rules += StoryGrammarRule(
             "Modal fiil + mastar",
             "Modal fiil çekimlenir; asıl fiil mastar hâlinde çoğunlukla cümlenin sonunda bulunur.",
@@ -1064,7 +1138,7 @@ private fun storyGrammarRules(lesson: ReaderLesson): List<StoryGrammarRule> {
     }
 
     val hasSeparable = lesson.sentences.flatten().any { it.lexeme.contextUsage?.contains("Ayrılabilir", ignoreCase = true) == true }
-    if (hasSeparable || Regex("\\b(auf|zu|ein|aus|ab|weg|zurück)\\b").containsMatchIn(text)) {
+    if (hasSeparable || Regex("\b(auf|zu|ein|aus|ab|weg|zurück)\b").containsMatchIn(text)) {
         rules += StoryGrammarRule(
             "Ayrılabilir fiiller",
             "Ana cümlede ayrılabilir fiilin çekimli kısmı normal fiil yerinde durur; ayrılan ön ek cümlenin ilerisine gider.",
@@ -1072,7 +1146,7 @@ private fun storyGrammarRules(lesson: ReaderLesson): List<StoryGrammarRule> {
         )
     }
 
-    if (Regex("\\b(mit|nach|von|bei|über|für|an|auf|in)\\b").containsMatchIn(text)) {
+    if (Regex("\b(mit|nach|von|bei|über|für|an|auf|in)\b").containsMatchIn(text)) {
         rules += StoryGrammarRule(
             "Edatlar ve hâller",
             "Bazı edatlar belirli bir hâl ister. Örneğin mit, nach, von ve bei çoğunlukla Dativ; für ise Akkusativ alır. an, auf, in ve über gibi Wechselpräpositionen kullanıma göre hâl değiştirir.",
@@ -1128,7 +1202,7 @@ private fun buildFillBlankCases(items: List<Lexeme>, lessons: List<ReaderLesson>
     }.distinctBy { it.lexeme.id }
 }
 
-private fun normalizeAnswer(text: String): String = text.lowercase().replace("…", " ").replace("...", " ").replace(Regex("[.,:;!?]"), "").replace(Regex("\\s+"), " ").trim()
+private fun normalizeAnswer(text: String): String = text.lowercase().replace("…", " ").replace("...", " ").replace(Regex("[.,:;!?]"), "").replace(Regex("\s+"), " ").trim()
 
 private fun dictionaryHeadword(item: Lexeme): String {
     if (item.wordClass != "İsim") return item.base
