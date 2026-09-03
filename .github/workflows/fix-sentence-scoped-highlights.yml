@@ -1,0 +1,81 @@
+name: Fix Sentence Scoped Highlights
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-sentence-scoped-highlights.yml'
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch highlight model and first story
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          # ReaderModels: independent strong highlight relation
+          p = Path('app/src/main/java/de/bascurt/almancaokuyucu/model/ReaderModels.kt')
+          s = p.read_text()
+          s = s.replace('    val contextLinkId: String? = null,\n    val contextUsage: String? = null', '    val contextLinkId: String? = null,\n    val strongLinkId: String? = null,\n    val contextUsage: String? = null')
+          p.write_text(s)
+
+          # ContextLessonEnhancer: sentence-targeted weak/strong links + sparse matching
+          p = Path('app/src/main/java/de/bascurt/almancaokuyucu/data/ContextLessonEnhancer.kt')
+          s = p.read_text()
+          s = s.replace('    val explanation: String,\n    val weakLink: Boolean = false\n)', '    val explanation: String,\n    val weakLink: Boolean = false,\n    val strongLink: Boolean = false,\n    val allowGaps: Boolean = false,\n    val sentenceIndex: Int? = null\n)')
+          start = s.index('    private fun applyPhrases(')
+          end = s.index('    private fun clean(', start)
+          new_func = '''    private fun applyPhrases(\n        lessonId: String,\n        sentenceIndex: Int,\n        sentence: List<ReadingToken>,\n        phrases: List<ContextPhrase>\n    ): List<ReadingToken> {\n        val result = sentence.toMutableList()\n        val keys = sentence.map { clean(it.text) }\n        phrases.sortedByDescending { it.words.size }.forEach { phrase ->\n            if (phrase.sentenceIndex != null && phrase.sentenceIndex != sentenceIndex) return@forEach\n            val wanted = phrase.words.map { it.lowercase() }\n            if (wanted.isEmpty() || wanted.size > keys.size) return@forEach\n\n            val matches = mutableListOf<List<Int>>()\n            if (phrase.allowGaps) {\n                for (candidateStart in keys.indices) {\n                    if (keys[candidateStart] != wanted.first()) continue\n                    val found = mutableListOf(candidateStart)\n                    var cursor = candidateStart + 1\n                    var ok = true\n                    for (word in wanted.drop(1)) {\n                        val next = (cursor until keys.size).firstOrNull { keys[it] == word }\n                        if (next == null) { ok = false; break }\n                        found += next\n                        cursor = next + 1\n                    }\n                    if (ok) matches += found\n                }\n            } else {\n                for (candidateStart in 0..keys.size - wanted.size) {\n                    if (keys.subList(candidateStart, candidateStart + wanted.size) == wanted) {\n                        matches += (candidateStart until candidateStart + wanted.size).toList()\n                    }\n                }\n            }\n\n            matches.forEach { indices ->\n                val first = indices.first()\n                val linkId = \"$lessonId-context-$sentenceIndex-$first-${wanted.joinToString(\"-\")}\"\n                when {\n                    phrase.strongLink -> indices.forEach { index ->\n                        val original = result[index].lexeme\n                        result[index] = result[index].copy(lexeme = original.copy(\n                            id = \"${original.id}-strong-$sentenceIndex-$first-$index\",\n                            strongLinkId = linkId,\n                            contextUsage = phrase.explanation\n                        ))\n                    }\n                    phrase.weakLink -> indices.forEach { index ->\n                        val original = result[index].lexeme\n                        result[index] = result[index].copy(lexeme = original.copy(\n                            id = \"${original.id}-ctx-$sentenceIndex-$first-$index\",\n                            contextLinkId = linkId,\n                            contextUsage = phrase.explanation\n                        ))\n                    }\n                    else -> {\n                        val shown = indices.joinToString(\" \") { sentence[it].text.trimEnd('.', ',', ';', '!', '?') }\n                        val grouped = Lexeme(\n                            id = linkId,\n                            base = shown,\n                            meaning = phrase.meaning,\n                            type = \"Kelime grubu\",\n                            explanation = phrase.explanation,\n                            quizEligible = true,\n                            wordClass = \"Kelime grubu\"\n                        )\n                        indices.forEach { index -> result[index] = result[index].copy(lexeme = grouped) }\n                    }\n                }\n            }\n        }\n        return result\n    }\n\n'''
+          s = s[:start] + new_func + s[end:]
+          p.write_text(s)
+
+          # MainActivity: selection is scoped to the current sentence and weak highlight is more visible
+          p = Path('app/src/main/java/de/bascurt/almancaokuyucu/MainActivity.kt')
+          s = p.read_text()
+          s = s.replace('    var selected by remember(lesson.id) { mutableStateOf<Lexeme?>(null) }\n    val isSaved', '    var selected by remember(lesson.id) { mutableStateOf<Lexeme?>(null) }\n    var selectedSentenceIndex by remember(lesson.id) { mutableIntStateOf(-1) }\n    val isSaved')
+          s = s.replace('ReaderTab.STORY -> StoryScreen(lesson, selected, preferences.storyTextSize, preferences.highlightEnabled, isCompleted, onComplete) { selected = it }', 'ReaderTab.STORY -> StoryScreen(lesson, selected, selectedSentenceIndex, preferences.storyTextSize, preferences.highlightEnabled, isCompleted, onComplete) { sentenceIndex, lexeme -> selectedSentenceIndex = sentenceIndex; selected = lexeme }')
+          s = s.replace('    selected: Lexeme?,\n    textSize: Int,', '    selected: Lexeme?,\n    selectedSentenceIndex: Int,\n    textSize: Int,')
+          s = s.replace('    onComplete: () -> Unit,\n    onSelect: (Lexeme) -> Unit', '    onComplete: () -> Unit,\n    onSelect: (Int, Lexeme) -> Unit')
+          old = '''                    val active = highlightEnabled && selected?.id == token.lexeme.id\n                    val linked = highlightEnabled && !active && selected?.contextLinkId != null &&\n                        selected.contextLinkId == token.lexeme.contextLinkId'''
+          new = '''                    val sameSentence = sentenceIndex == selectedSentenceIndex\n                    val sameStrongGroup = sameSentence && selected?.strongLinkId != null &&\n                        selected.strongLinkId == token.lexeme.strongLinkId\n                    val active = highlightEnabled && sameSentence &&\n                        (selected?.id == token.lexeme.id || sameStrongGroup)\n                    val linked = highlightEnabled && sameSentence && !active && selected?.contextLinkId != null &&\n                        selected.contextLinkId == token.lexeme.contextLinkId'''
+          if old not in s: raise SystemExit('MainActivity highlight block not found')
+          s = s.replace(old, new)
+          s = s.replace('linked -> Turquoise.copy(alpha = .24f)', 'linked -> Turquoise.copy(alpha = .46f)')
+          s = s.replace('.clickable { onSelect(token.lexeme) }', '.clickable { onSelect(sentenceIndex, token.lexeme) }')
+          p.write_text(s)
+
+          # FocusedLessons: explicit sentence-scoped strong groups for the first story
+          p = Path('app/src/main/java/de/bascurt/almancaokuyucu/data/FocusedLessons.kt')
+          s = p.read_text()
+          anchor = '                link("die ersten Fragen von den Gästen", "misafirlerin ilk soruları", "die ersten Fragen von den Gästen → misafirlerin ilk soruları. von burada soruların kimden geldiğini / kime ait olduğunu bağlar."),\n'
+          insert = anchor + '''                strongAt(4, "fragt nach", "fragen nach + Dativ", "fragen nach + Dativ → bir şeyi sormak / hakkında bilgi istemek. Bu cümlede: nach dem Frühstück → kahvaltıyı / kahvaltı hakkında soruyor."),\n'''
+          if anchor not in s: raise SystemExit('FocusedLessons anchor 1 missing')
+          s = s.replace(anchor, insert, 1)
+          anchor2 = '                link("bei Bedarf", "gerektiğinde", "bei Bedarf → gerektiğinde / ihtiyaç hâlinde. bei burada koşul/durum bildirir ve Dativ alır."),\n'
+          insert2 = anchor2 + '''                strongAt(9, "hört zu", "zuhören", "zuhören → dinlemek. Ayrılabilir fiildir: hört ... zu. Bu cümlede Elif dikkatlice dinliyor."),\n                strongAt(9, "fragt nach", "nachfragen", "nachfragen → tekrar sormak / yeniden bilgi istemek. Ayrılabilir fiildir: fragt ... nach. Bu cümlede gerektiğinde tekrar soruyor."),\n'''
+          if anchor2 not in s: raise SystemExit('FocusedLessons anchor 2 missing')
+          s = s.replace(anchor2, insert2, 1)
+          anchor3 = '                link("am Abend", "akşam", "am Abend → akşam. am = an + dem; burada zaman bildirir."),\n'
+          insert3 = anchor3 + '''                strongAt(10, "spricht mit über", "mit jemandem über etwas sprechen", "mit jemandem über etwas sprechen → biriyle bir şey hakkında konuşmak. Bu cümlede Elif şefiyle ilk iş günü hakkında konuşuyor."),\n'''
+          if anchor3 not in s: raise SystemExit('FocusedLessons anchor 3 missing')
+          s = s.replace(anchor3, insert3, 1)
+          anchor4 = '                link("zum Schluss", "son olarak", "zum Schluss → son olarak / en sonunda. zum = zu + dem; ifade burada sıralama/zaman anlamı verir."),\n'
+          insert4 = anchor4 + '''                strongAt(11, "räumt auf", "aufräumen", "aufräumen → toplamak / düzenlemek. Ayrılabilir fiildir: räumt ... auf. Bu cümlede yerini topluyor."),\n                strongAt(11, "verabschiedet sich von", "sich von jemandem verabschieden", "sich von jemandem verabschieden → biriyle vedalaşmak. Bu cümlede çalışma arkadaşlarıyla vedalaşıyor."),\n'''
+          if anchor4 not in s: raise SystemExit('FocusedLessons anchor 4 missing')
+          s = s.replace(anchor4, insert4, 1)
+
+          helper_anchor = '    private fun commonPhrases() = listOf('
+          helper = '''    private fun strongAt(sentenceIndex: Int, text: String, meaning: String, explanation: String) = ContextPhrase(\n        words = text.lowercase().split(" "),\n        meaning = meaning,\n        explanation = explanation,\n        strongLink = true,\n        allowGaps = true,\n        sentenceIndex = sentenceIndex\n    )\n\n'''
+          if helper_anchor not in s: raise SystemExit('helper anchor missing')
+          s = s.replace(helper_anchor, helper + helper_anchor, 1)
+          p.write_text(s)
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/de/bascurt/almancaokuyucu/model/ReaderModels.kt app/src/main/java/de/bascurt/almancaokuyucu/data/ContextLessonEnhancer.kt app/src/main/java/de/bascurt/almancaokuyucu/data/FocusedLessons.kt app/src/main/java/de/bascurt/almancaokuyucu/MainActivity.kt
+          git commit -m "Scope highlights to sentences and strengthen linked groups"
+          git push
