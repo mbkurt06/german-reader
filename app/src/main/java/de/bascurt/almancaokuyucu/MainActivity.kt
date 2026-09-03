@@ -342,6 +342,7 @@ private fun ReaderScreen(
 ) {
     var tab by remember(lesson.id) { mutableStateOf(ReaderTab.STORY) }
     var selected by remember(lesson.id) { mutableStateOf<Lexeme?>(null) }
+    var selectedSentenceIndex by remember(lesson.id) { mutableIntStateOf(-1) }
     val isSaved = selected?.let { item -> saved.any { it.id == item.id } } == true
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         if (tab == ReaderTab.STORY) MeaningPanel(selected, isSaved, preferences.detailedExplanations, { selected?.let(onToggleSaved) }, onHome)
@@ -349,7 +350,7 @@ private fun ReaderScreen(
         ReaderTabs(tab) { tab = it }
         Box(Modifier.weight(1f)) {
             when (tab) {
-                ReaderTab.STORY -> StoryScreen(lesson, selected, preferences.storyTextSize, preferences.highlightEnabled, isCompleted, onComplete) { selected = it }
+                ReaderTab.STORY -> StoryScreen(lesson, selected, selectedSentenceIndex, preferences.storyTextSize, preferences.highlightEnabled, isCompleted, onComplete) { sentenceIndex, lexeme -> selectedSentenceIndex = sentenceIndex; selected = lexeme }
                 ReaderTab.QUIZ -> QuizScreen(lesson, preferences.quizQuestionCount)
                 ReaderTab.WORDS -> LessonWordsScreen(lesson, saved, onToggleSaved)
                 ReaderTab.GRAMMAR -> GrammarScreen(lesson)
@@ -418,11 +419,12 @@ private fun MeaningPanel(selected: Lexeme?, isSaved: Boolean, detailed: Boolean,
 private fun StoryScreen(
     lesson: ReaderLesson,
     selected: Lexeme?,
+    selectedSentenceIndex: Int,
     textSize: Int,
     highlightEnabled: Boolean,
     isCompleted: Boolean,
     onComplete: () -> Unit,
-    onSelect: (Lexeme) -> Unit
+    onSelect: (Int, Lexeme) -> Unit
 ) {
     var showTranslations by remember(lesson.id) { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 110.dp)) {
@@ -443,8 +445,12 @@ private fun StoryScreen(
         lesson.sentences.forEachIndexed { sentenceIndex, sentence ->
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 sentence.forEach { token ->
-                    val active = highlightEnabled && selected?.id == token.lexeme.id
-                    val linked = highlightEnabled && !active && selected?.contextLinkId != null &&
+                    val sameSentence = sentenceIndex == selectedSentenceIndex
+                    val sameStrongGroup = sameSentence && selected?.strongLinkId != null &&
+                        selected.strongLinkId == token.lexeme.strongLinkId
+                    val active = highlightEnabled && sameSentence &&
+                        (selected?.id == token.lexeme.id || sameStrongGroup)
+                    val linked = highlightEnabled && sameSentence && !active && selected?.contextLinkId != null &&
                         selected.contextLinkId == token.lexeme.contextLinkId
                     Text(
                         token.text,
@@ -452,9 +458,9 @@ private fun StoryScreen(
                         lineHeight = (textSize + 10).sp,
                         color = if (active) Color.White else MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.background(
-                            when { active -> Turquoise; linked -> Turquoise.copy(alpha = .24f); else -> Color.Transparent },
+                            when { active -> Turquoise; linked -> Turquoise.copy(alpha = .46f); else -> Color.Transparent },
                             RoundedCornerShape(7.dp)
-                        ).clickable { onSelect(token.lexeme) }.padding(horizontal = 2.dp, vertical = 2.dp)
+                        ).clickable { onSelect(sentenceIndex, token.lexeme) }.padding(horizontal = 2.dp, vertical = 2.dp)
                     )
                 }
             }

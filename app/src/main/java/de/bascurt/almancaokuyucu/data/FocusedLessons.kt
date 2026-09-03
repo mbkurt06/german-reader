@@ -43,6 +43,7 @@ internal object FocusedLessons {
                 link("im Hotel", "otelde", "im Hotel → otelde. im = in + dem; bir yerin içinde bulunmayı anlatır."),
                 link("am Morgen", "sabah", "am Morgen → sabah / sabahleyin. am = an + dem; burada zaman bildirir."),
                 link("die ersten Fragen von den Gästen", "misafirlerin ilk soruları", "die ersten Fragen von den Gästen → misafirlerin ilk soruları. von burada soruların kimden geldiğini / kime ait olduğunu bağlar."),
+                strongAt(4, "fragt nach", "fragen nach + Dativ", "fragen nach + Dativ → bir şeyi sormak / hakkında bilgi istemek. Bu cümlede: nach dem Frühstück → kahvaltıyı / kahvaltı hakkında soruyor."),
                 link("noch einmal", "bir kez daha", "noch einmal → bir kez daha / tekrar; eylemin tekrarlandığını anlatır."),
                 link("am Mittag", "öğlen", "am Mittag → öğlen. am = an + dem; burada zaman bildirir."),
                 link("mit den Kollegen", "çalışma arkadaşlarıyla", "mit den Kollegen → çalışma arkadaşlarıyla. mit burada beraberliği anlatır ve Dativ alır."),
@@ -50,10 +51,15 @@ internal object FocusedLessons {
                 link("an der Rezeption", "resepsiyonda", "an der Rezeption → resepsiyonda. an burada bulunulan yeri anlatır."),
                 link("am Arbeitsplatz", "iş yerinde", "am Arbeitsplatz → iş yerinde. am = an + dem; burada konum bildirir."),
                 link("bei Bedarf", "gerektiğinde", "bei Bedarf → gerektiğinde / ihtiyaç hâlinde. bei burada koşul/durum bildirir ve Dativ alır."),
+                strongAt(9, "hört zu", "zuhören", "zuhören → dinlemek. Ayrılabilir fiildir: hört ... zu. Bu cümlede Elif dikkatlice dinliyor."),
+                strongAt(9, "fragt nach", "nachfragen", "nachfragen → tekrar sormak / yeniden bilgi istemek. Ayrılabilir fiildir: fragt ... nach. Bu cümlede gerektiğinde tekrar soruyor."),
                 link("am Abend", "akşam", "am Abend → akşam. am = an + dem; burada zaman bildirir."),
+                strongAt(10, "spricht mit über", "mit jemandem über etwas sprechen", "mit jemandem über etwas sprechen → biriyle bir şey hakkında konuşmak. Bu cümlede Elif şefiyle ilk iş günü hakkında konuşuyor."),
                 link("mit ihrer Chefin", "şefiyle", "mit ihrer Chefin → şefiyle. mit beraberliği anlatır ve Dativ alır."),
                 link("über den ersten Arbeitstag", "ilk iş günü hakkında", "über den ersten Arbeitstag → ilk iş günü hakkında. über burada konuşulan konuyu belirtir."),
                 link("zum Schluss", "son olarak", "zum Schluss → son olarak / en sonunda. zum = zu + dem; ifade burada sıralama/zaman anlamı verir."),
+                strongAt(11, "räumt auf", "aufräumen", "aufräumen → toplamak / düzenlemek. Ayrılabilir fiildir: räumt ... auf. Bu cümlede yerini topluyor."),
+                strongAt(11, "verabschiedet sich von", "sich von jemandem verabschieden", "sich von jemandem verabschieden → biriyle vedalaşmak. Bu cümlede çalışma arkadaşlarıyla vedalaşıyor."),
                 link("von den Kollegen", "çalışma arkadaşlarıyla / çalışma arkadaşlarından", "von den Kollegen → çalışma arkadaşlarından/arkadaşlarıyla vedalaşma bağlamı. von Dativ alır.")
             )
         ),
@@ -229,6 +235,15 @@ internal object FocusedLessons {
                 phrase("nach Hause", "eve", "Yön bildirir: eve doğru.")
             )
         )
+    )
+
+    private fun strongAt(sentenceIndex: Int, text: String, meaning: String, explanation: String) = ContextPhrase(
+        words = text.lowercase().split(" "),
+        meaning = meaning,
+        explanation = explanation,
+        strongLink = true,
+        allowGaps = true,
+        sentenceIndex = sentenceIndex
     )
 
     private fun commonPhrases() = listOf(

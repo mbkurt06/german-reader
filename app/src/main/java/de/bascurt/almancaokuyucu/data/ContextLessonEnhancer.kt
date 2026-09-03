@@ -8,7 +8,10 @@ internal data class ContextPhrase(
     val words: List<String>,
     val meaning: String,
     val explanation: String,
-    val weakLink: Boolean = false
+    val weakLink: Boolean = false,
+    val strongLink: Boolean = false,
+    val allowGaps: Boolean = false,
+    val sentenceIndex: Int? = null
 )
 
 /**
@@ -39,33 +42,65 @@ internal object ContextLessonEnhancer {
         val result = sentence.toMutableList()
         val keys = sentence.map { clean(it.text) }
         phrases.sortedByDescending { it.words.size }.forEach { phrase ->
+            if (phrase.sentenceIndex != null && phrase.sentenceIndex != sentenceIndex) return@forEach
             val wanted = phrase.words.map { it.lowercase() }
             if (wanted.isEmpty() || wanted.size > keys.size) return@forEach
-            for (start in 0..keys.size - wanted.size) {
-                if (keys.subList(start, start + wanted.size) != wanted) continue
-                val shown = sentence.subList(start, start + wanted.size).joinToString(" ") { it.text.trimEnd('.', ',', ';', '!', '?') }
-                val linkId = "$lessonId-context-$sentenceIndex-$start-${wanted.joinToString("-")}"
-                if (phrase.weakLink) {
-                    for (index in start until start + wanted.size) {
+
+            val matches = mutableListOf<List<Int>>()
+            if (phrase.allowGaps) {
+                for (candidateStart in keys.indices) {
+                    if (keys[candidateStart] != wanted.first()) continue
+                    val found = mutableListOf(candidateStart)
+                    var cursor = candidateStart + 1
+                    var ok = true
+                    for (word in wanted.drop(1)) {
+                        val next = (cursor until keys.size).firstOrNull { keys[it] == word }
+                        if (next == null) { ok = false; break }
+                        found += next
+                        cursor = next + 1
+                    }
+                    if (ok) matches += found
+                }
+            } else {
+                for (candidateStart in 0..keys.size - wanted.size) {
+                    if (keys.subList(candidateStart, candidateStart + wanted.size) == wanted) {
+                        matches += (candidateStart until candidateStart + wanted.size).toList()
+                    }
+                }
+            }
+
+            matches.forEach { indices ->
+                val first = indices.first()
+                val linkId = "$lessonId-context-$sentenceIndex-$first-${wanted.joinToString("-")}"
+                when {
+                    phrase.strongLink -> indices.forEach { index ->
                         val original = result[index].lexeme
                         result[index] = result[index].copy(lexeme = original.copy(
-                            id = "${original.id}-ctx-$sentenceIndex-$start-$index",
+                            id = "${original.id}-strong-$sentenceIndex-$first-$index",
+                            strongLinkId = linkId,
+                            contextUsage = phrase.explanation
+                        ))
+                    }
+                    phrase.weakLink -> indices.forEach { index ->
+                        val original = result[index].lexeme
+                        result[index] = result[index].copy(lexeme = original.copy(
+                            id = "${original.id}-ctx-$sentenceIndex-$first-$index",
                             contextLinkId = linkId,
                             contextUsage = phrase.explanation
                         ))
                     }
-                } else {
-                    val grouped = Lexeme(
-                        id = linkId,
-                        base = shown,
-                        meaning = phrase.meaning,
-                        type = "Kelime grubu",
-                        explanation = phrase.explanation,
-                        quizEligible = true,
-                        wordClass = "Kelime grubu"
-                    )
-                    for (index in start until start + wanted.size) {
-                        result[index] = result[index].copy(lexeme = grouped)
+                    else -> {
+                        val shown = indices.joinToString(" ") { sentence[it].text.trimEnd('.', ',', ';', '!', '?') }
+                        val grouped = Lexeme(
+                            id = linkId,
+                            base = shown,
+                            meaning = phrase.meaning,
+                            type = "Kelime grubu",
+                            explanation = phrase.explanation,
+                            quizEligible = true,
+                            wordClass = "Kelime grubu"
+                        )
+                        indices.forEach { index -> result[index] = result[index].copy(lexeme = grouped) }
                     }
                 }
             }

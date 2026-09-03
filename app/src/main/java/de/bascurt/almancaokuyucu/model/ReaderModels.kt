@@ -23,6 +23,7 @@ data class Lexeme(
     val comparative: String? = null,
     val superlative: String? = null,
     val contextLinkId: String? = null,
+    val strongLinkId: String? = null,
     val contextUsage: String? = null
 )
 
