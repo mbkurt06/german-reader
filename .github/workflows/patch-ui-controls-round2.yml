@@ -36,3 +36,4 @@ jobs:
             git commit -m "Refine reader theme and settings controls"
             git push
           fi
+# retry 2
