@@ -11,7 +11,10 @@ internal data class ContextPhrase(
     val weakLink: Boolean = false,
     val strongLink: Boolean = false,
     val allowGaps: Boolean = false,
-    val sentenceIndex: Int? = null
+    val sentenceIndex: Int? = null,
+    val dictionaryForm: String? = null,
+    val contextExpression: String? = null,
+    val contextMeaning: String? = null
 )
 
 /**
@@ -72,6 +75,9 @@ internal object ContextLessonEnhancer {
             matches.forEach { indices ->
                 val first = indices.first()
                 val linkId = "$lessonId-context-$sentenceIndex-$first-${wanted.joinToString("-")}"
+                val shown = indices.joinToString(" ") { sentence[it].text.trimEnd('.', ',', ';', '!', '?') }
+                val usageExpression = phrase.contextExpression ?: shown
+                val usageMeaning = phrase.contextMeaning ?: phrase.meaning
                 when {
                     phrase.strongLink -> indices.forEach { index ->
                         val original = result[index].lexeme
@@ -80,7 +86,10 @@ internal object ContextLessonEnhancer {
                             strongLinkId = linkId,
                             contextLinkId = null,
                             contextLinkIds = emptyList(),
-                            contextUsage = phrase.explanation
+                            contextUsage = phrase.explanation,
+                            dictionaryForm = phrase.dictionaryForm,
+                            contextExpression = usageExpression,
+                            contextMeaning = usageMeaning
                         ))
                     }
                     phrase.weakLink -> indices.forEach { index ->
@@ -89,11 +98,13 @@ internal object ContextLessonEnhancer {
                             id = "${original.id}-ctx-$sentenceIndex-$first-$index",
                             contextLinkId = original.contextLinkId ?: linkId,
                             contextLinkIds = (original.contextLinkIds + linkId).distinct(),
-                            contextUsage = phrase.explanation
+                            contextUsage = phrase.explanation,
+                            dictionaryForm = phrase.dictionaryForm,
+                            contextExpression = usageExpression,
+                            contextMeaning = usageMeaning
                         ))
                     }
                     else -> {
-                        val shown = indices.joinToString(" ") { sentence[it].text.trimEnd('.', ',', ';', '!', '?') }
                         val grouped = Lexeme(
                             id = linkId,
                             base = shown,

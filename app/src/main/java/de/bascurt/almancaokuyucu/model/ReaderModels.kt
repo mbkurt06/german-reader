@@ -25,7 +25,10 @@ data class Lexeme(
     val contextLinkId: String? = null,
     val contextLinkIds: List<String> = emptyList(),
     val strongLinkId: String? = null,
-    val contextUsage: String? = null
+    val contextUsage: String? = null,
+    val dictionaryForm: String? = null,
+    val contextExpression: String? = null,
+    val contextMeaning: String? = null
 )
 
 data class ReadingToken(val text: String, val lexeme: Lexeme)

@@ -394,7 +394,7 @@ private fun ReaderScreen(
     var selectedSentenceIndex by remember(lesson.id) { mutableIntStateOf(-1) }
     val isSaved = selected?.let { item -> saved.any { it.id == item.id } } == true
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        if (tab == ReaderTab.STORY) MeaningPanel(selected, isSaved, preferences.detailedExplanations, preferences.appLanguage, { selected?.let(onToggleSaved) }, onHome)
+        if (tab == ReaderTab.STORY) MeaningPanel(selected, isSaved, preferences.appLanguage, { selected?.let(onToggleSaved) }, onHome)
         else SectionHeader(lesson.title, onHome)
         ReaderTabs(tab, preferences.appLanguage) { tab = it }
         Box(Modifier.weight(1f)) {
@@ -424,8 +424,8 @@ private fun ReaderScreen(
 }
 
 @Composable
-private fun MeaningPanel(selected: Lexeme?, isSaved: Boolean, detailed: Boolean, appLanguage: String, onSave: () -> Unit, onHome: () -> Unit) {
-    Box(Modifier.fillMaxWidth().height(230.dp).background(Brush.verticalGradient(listOf(Color(0xFF07171F), Dark))).padding(horizontal = 22.dp, vertical = 14.dp)) {
+private fun MeaningPanel(selected: Lexeme?, isSaved: Boolean, appLanguage: String, onSave: () -> Unit, onHome: () -> Unit) {
+    Box(Modifier.fillMaxWidth().height(215.dp).background(Brush.verticalGradient(listOf(Color(0xFF07171F), Dark))).padding(horizontal = 22.dp, vertical = 14.dp)) {
         Text("‹ ${uiText(appLanguage, "Hikâyeler")}", color = Color.White, fontSize = 17.sp, modifier = Modifier.clickable(onClick = onHome).padding(6.dp))
         Text(if (isSaved) "★" else "☆", color = if (selected == null) Color.White.copy(alpha = .35f) else Color.White, fontSize = 34.sp, modifier = Modifier.align(Alignment.TopEnd).clickable(enabled = selected != null, onClick = onSave).padding(4.dp))
         Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().heightIn(max = 165.dp).verticalScroll(rememberScrollState())) {
@@ -435,40 +435,25 @@ private fun MeaningPanel(selected: Lexeme?, isSaved: Boolean, detailed: Boolean,
                 Text(uiText(appLanguage, "Anlamı, kelime türü ve kullanım bilgisi burada görünecek."), color = Color(0xFFD5E4E8), fontSize = 15.sp)
             } else {
                 Text(dictionaryHeadword(selected), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    DarkPill("${uiText(appLanguage, "Kelime türü")}: ${selected.wordClass}")
-                    selected.grammar?.let { DarkPill(it) }
+                Text(dictionaryWordClass(selected), color = Color(0xFF9ED7D6), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(5.dp))
+                Text(uiText(appLanguage, "Anlam"), color = Color(0xFF9ED7D6), fontSize = 12.sp)
+                Text(selected.meaning, color = Color.White, fontSize = 16.sp)
+                dictionaryForms(selected)?.let { forms ->
+                    Spacer(Modifier.height(3.dp))
+                    Text(forms, color = Color(0xFFD5E4E8), fontSize = 15.sp)
                 }
-                if (selected.wordClass == "İsim") {
-                    DetailLine(uiText(appLanguage, "Artikel"), selected.article ?: "—")
-                    DetailLine(uiText(appLanguage, "Çoğul"), nounPluralDisplay(selected))
-                    selected.accusativeNote?.let { DetailLine("Akkusativ", it) }
-                } else {
-                    MorphologyDetails(selected, appLanguage)
-                }
-                Spacer(Modifier.height(4.dp))
-                DetailLine(uiText(appLanguage, "Anlam"), selected.meaning)
-                selected.contextUsage?.let {
+                if (!selected.contextExpression.isNullOrBlank() && !selected.contextMeaning.isNullOrBlank()) {
                     Spacer(Modifier.height(7.dp))
                     HorizontalDivider(color = Color.White.copy(alpha = .16f))
-                    Spacer(Modifier.height(4.dp))
-                    DetailLine(uiText(appLanguage, "Bu cümlede"), it)
-                }
-                if (detailed) selected.explanation?.let {
-                    Spacer(Modifier.height(7.dp))
-                    Text(it, color = Color(0xFFD5E4E8), fontSize = 14.sp, lineHeight = 19.sp)
+                    Spacer(Modifier.height(5.dp))
+                    Text(uiText(appLanguage, "Cümle içindeki kullanım"), color = Color(0xFF9ED7D6), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(selected.contextExpression, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(selected.contextMeaning, color = Color(0xFFD5E4E8), fontSize = 14.sp)
                 }
                 Spacer(Modifier.height(8.dp))
             }
         }
-    }
-}
-
-@Composable private fun MorphologyDetails(item: Lexeme, appLanguage: String) {
-    when (item.wordClass) {
-        "Fiil" -> { item.infinitive?.let { DetailLine(uiText(appLanguage, "Mastar"), it) }; item.thirdPerson?.let { DetailLine(uiText(appLanguage, "3. tekil şahıs"), it) }; item.preterite?.let { DetailLine("Präteritum", it) }; item.perfect?.let { DetailLine("Perfekt", it) } }
-        "Sıfat" -> { item.positive?.let { DetailLine(uiText(appLanguage, "Yalın hâl"), it) }; item.comparative?.let { DetailLine("Komparativ", it) }; item.superlative?.let { DetailLine("Superlativ", it) } }
     }
 }
 
@@ -1365,8 +1350,26 @@ private fun buildFillBlankCases(items: List<Lexeme>, lessons: List<ReaderLesson>
 private fun normalizeAnswer(text: String): String = text.lowercase().replace("…", " ").replace("...", " ").replace(Regex("[.,:;!?]"), "").replace(Regex("""\s+"""), " ").trim()
 
 private fun dictionaryHeadword(item: Lexeme): String {
+    item.dictionaryForm?.let { return it }
     if (item.wordClass != "İsim") return item.base
-    return "${item.article ?: "—"} ${item.base}"
+    val singular = "${item.article ?: "—"} ${item.base}"
+    val plural = nounPluralDisplay(item)
+    return if (plural == "—") singular else "$singular, $plural"
+}
+
+private fun dictionaryWordClass(item: Lexeme): String = when {
+    item.wordClass == "Fiil" && item.base.startsWith("sich ") -> "Dönüşlü fiil"
+    else -> item.wordClass
+}
+
+private fun dictionaryForms(item: Lexeme): String? = when {
+    item.wordClass == "Fiil" -> listOfNotNull(item.thirdPerson, item.preterite, item.perfect)
+        .takeIf { it.isNotEmpty() }
+        ?.joinToString(", ")
+    item.wordClass.contains("Sıfat") -> listOfNotNull(item.positive, item.comparative, item.superlative)
+        .takeIf { it.size >= 2 }
+        ?.joinToString(", ")
+    else -> null
 }
 
 private fun nounPluralDisplay(item: Lexeme): String {

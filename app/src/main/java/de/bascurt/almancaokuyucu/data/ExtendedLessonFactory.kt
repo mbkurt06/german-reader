@@ -289,14 +289,32 @@ internal object ExtendedLessonFactory {
         tokenIndex: Int,
         key: String,
         value: Triple<String, String, String>
-    ) = Lexeme(
-        id = "$lessonId-s-$sentenceIndex-$tokenIndex-$key",
-        base = value.first,
-        meaning = value.second,
-        type = value.third,
-        quizEligible = false,
-        wordClass = value.third
-    )
+    ): Lexeme {
+        val adjectiveForms = if (value.third.contains("Sıfat")) adjectiveForms(value.first) else null
+        return Lexeme(
+            id = "$lessonId-s-$sentenceIndex-$tokenIndex-$key",
+            base = value.first,
+            meaning = value.second,
+            type = value.third,
+            quizEligible = false,
+            wordClass = value.third,
+            positive = adjectiveForms?.first,
+            comparative = adjectiveForms?.second,
+            superlative = adjectiveForms?.third
+        )
+    }
+
+    private fun adjectiveForms(base: String): Triple<String, String, String>? = when (base) {
+        "wichtig" -> Triple("wichtig", "wichtiger", "am wichtigsten")
+        "neu" -> Triple("neu", "neuer", "am neuesten")
+        "kurz" -> Triple("kurz", "kürzer", "am kürzesten")
+        "gut" -> Triple("gut", "besser", "am besten")
+        "nah" -> Triple("nah", "näher", "am nächsten")
+        "groß" -> Triple("groß", "größer", "am größten")
+        "hoch" -> Triple("hoch", "höher", "am höchsten")
+        "erste", "nächste", "letzt" -> null
+        else -> Triple(base, "${base}er", "am ${base}sten")
+    }
 
     /** Eksik anlamları otomatik testte ve geliştirici denetiminde bulmak için. */
     fun missingMeaningTokens(lessons: List<ReaderLesson>): List<String> = lessons.flatMap { lesson ->
