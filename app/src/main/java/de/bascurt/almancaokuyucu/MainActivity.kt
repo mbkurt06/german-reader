@@ -543,40 +543,20 @@ private fun StoryScreen(
                 }
                 Spacer(Modifier.width(7.dp))
                 Text(lesson.title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1)
-                Box {
-                    OutlinedButton(
-                        onClick = { showDisplayControls = true },
-                        modifier = Modifier.height(36.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp)
-                    ) { Text("Aa ☀", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
-                    DropdownMenu(
-                        expanded = showDisplayControls,
-                        onDismissRequest = { showDisplayControls = false },
-                        modifier = Modifier.width(270.dp)
+                Surface(
+                    color = Turquoise.copy(alpha = .12f),
+                    contentColor = Turquoise,
+                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.clickable { showDisplayControls = true }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Text("Yazı boyutu", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                                Text("$textSize", color = Turquoise, fontWeight = FontWeight.Bold)
-                            }
-                            Slider(
-                                value = textSize.toFloat(),
-                                onValueChange = { onTextSizeChange(it.toInt()) },
-                                valueRange = 18f..30f,
-                                steps = 5
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Text("Aydınlatma", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                                Text("${(brightness * 100).toInt()}%", color = Turquoise, fontWeight = FontWeight.Bold)
-                            }
-                            Slider(
-                                value = brightness,
-                                onValueChange = { onBrightnessChange(it.coerceIn(.08f, 1f)) },
-                                valueRange = .08f..1f
-                            )
-                        }
+                        Text("Aa", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Box(Modifier.width(1.dp).height(16.dp).background(Turquoise.copy(alpha = .35f)))
+                        Text("☀", fontSize = 14.sp)
                     }
                 }
                 Spacer(Modifier.width(6.dp))
@@ -642,6 +622,124 @@ private fun StoryScreen(
             } else {
                 Button(onClick = onComplete, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(17.dp)) {
                     Text(uiText(appLanguage, "Hikâyeyi tamamlandı olarak işaretle"), fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+
+    if (showDisplayControls) {
+        ModalBottomSheet(
+            onDismissRequest = { showDisplayControls = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 10.dp,
+            shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
+            dragHandle = {
+                Box(
+                    Modifier
+                        .padding(top = 10.dp, bottom = 6.dp)
+                        .size(width = 42.dp, height = 4.dp)
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .28f), RoundedCornerShape(8.dp))
+                )
+            }
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(start = 22.dp, end = 22.dp, bottom = 24.dp)
+            ) {
+                Text("Okuma görünümü", fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    "Yazıyı ve ekran ışığını okurken anlık olarak ayarla.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(18.dp))
+
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .48f),
+                    shape = RoundedCornerShape(22.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 15.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Yazı boyutu", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                            Surface(color = Turquoise.copy(alpha = .13f), shape = RoundedCornerShape(10.dp)) {
+                                Text("$textSize", Modifier.padding(horizontal = 10.dp, vertical = 5.dp), color = Turquoise, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.surface,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.size(38.dp)
+                            ) { Box(contentAlignment = Alignment.Center) { Text("A", fontSize = 17.sp) } }
+                            Slider(
+                                value = textSize.toFloat(),
+                                onValueChange = { onTextSizeChange(it.toInt()) },
+                                valueRange = 18f..30f,
+                                steps = 5,
+                                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Turquoise,
+                                    activeTrackColor = Turquoise,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .65f)
+                                )
+                            )
+                            Surface(
+                                color = MaterialTheme.colorScheme.surface,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.size(38.dp)
+                            ) { Box(contentAlignment = Alignment.Center) { Text("A", fontSize = 25.sp, fontWeight = FontWeight.SemiBold) } }
+                        }
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 47.dp)) {
+                            Text("18", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.weight(1f))
+                            Text("30", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .48f),
+                    shape = RoundedCornerShape(22.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 15.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Aydınlatma", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                            Surface(color = Turquoise.copy(alpha = .13f), shape = RoundedCornerShape(10.dp)) {
+                                Text("${(brightness * 100).toInt()}%", Modifier.padding(horizontal = 10.dp, vertical = 5.dp), color = Turquoise, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("☼", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(38.dp))
+                            Slider(
+                                value = brightness,
+                                onValueChange = { onBrightnessChange(it.coerceIn(.08f, 1f)) },
+                                valueRange = .08f..1f,
+                                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Turquoise,
+                                    activeTrackColor = Turquoise,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .65f)
+                                )
+                            )
+                            Box(Modifier.width(38.dp), contentAlignment = Alignment.CenterEnd) {
+                                Text("☀", fontSize = 23.sp, color = Turquoise)
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 47.dp)) {
+                            Text("8%", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.weight(1f))
+                            Text("100%", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                 }
             }
         }
