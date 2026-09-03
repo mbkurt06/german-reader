@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 
 private object ReaderControlBridge {
@@ -167,10 +168,6 @@ fun Slider(
     }
 }
 
-/**
- * Reader ekranındaki tek bottom-sheet çağrısını yakalar. Böylece panelin arkasındaki
- * hikâye görünür kalır ve ekstra bir ay/anahtar satırı eklenir.
- */
 @Composable
 fun ModalBottomSheet(
     onDismissRequest: () -> Unit,
@@ -206,7 +203,7 @@ fun ModalBottomSheet(
             ) {
                 androidx.compose.material3.Text(
                     text = "☾",
-                    fontSize = androidx.compose.ui.unit.sp(25f),
+                    fontSize = 25.sp,
                     color = if (ReaderControlBridge.nightMode) Color(0xFFFFC857) else MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -219,10 +216,6 @@ fun ModalBottomSheet(
     }
 }
 
-/**
- * Material3 Text'in normal davranışını korur; yalnızca okuyucu panelindeki gereksiz
- * başlıkları gizler ve A/güneş uçlarını dokunulabilir yapar.
- */
 @Composable
 fun Text(
     text: String,
