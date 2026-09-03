@@ -2,7 +2,7 @@ name: Fix Reader Controls And Remaining Noun Link
 on:
   push:
     paths:
-      - .github/workflows/fix-reader-controls.yml
+      - '.github/workflows/fix-reader-controls.yml'
 jobs:
   patch:
     runs-on: ubuntu-latest
@@ -15,7 +15,6 @@ jobs:
           python3 <<'PY'
           from pathlib import Path
 
-          # 1) Completion state must be reversible.
           p = Path('app/src/main/java/de/bascurt/almancaokuyucu/data/UserPreferencesStore.kt')
           s = p.read_text()
           old = '''    fun markLessonRead(id: String) {
@@ -23,11 +22,7 @@ jobs:
         prefs.edit().putStringSet("read_lessons", updated).apply()
     }
 '''
-          new = '''    fun markLessonRead(id: String) {
-        val updated = readLessonIds() + id
-        prefs.edit().putStringSet("read_lessons", updated).apply()
-    }
-
+          new = old + '''
     fun toggleLessonRead(id: String) {
         val current = readLessonIds()
         val updated = if (id in current) current - id else current + id
@@ -35,25 +30,20 @@ jobs:
     }
 '''
           if 'fun toggleLessonRead(id: String)' not in s:
-              if old not in s: raise SystemExit('UserPreferencesStore markLessonRead block missing')
-              s = s.replace(old, new, 1)
-              p.write_text(s)
+              if old not in s: raise SystemExit('markLessonRead block missing')
+              p.write_text(s.replace(old, new, 1))
 
-          # 2) Reader UI: toggle completion and keep translation control fixed while story scrolls.
           p = Path('app/src/main/java/de/bascurt/almancaokuyucu/MainActivity.kt')
           s = p.read_text()
-          old = '''    fun completeLesson(lesson: ReaderLesson) {
+          s = s.replace('''    fun completeLesson(lesson: ReaderLesson) {
         userStore.markLessonRead(lesson.id)
         completedLessonIds = userStore.readLessonIds()
     }
-'''
-          new = '''    fun completeLesson(lesson: ReaderLesson) {
+''', '''    fun completeLesson(lesson: ReaderLesson) {
         userStore.toggleLessonRead(lesson.id)
         completedLessonIds = userStore.readLessonIds()
     }
-'''
-          if old in s:
-              s = s.replace(old, new, 1)
+''', 1)
 
           old_start = '''    var showTranslations by remember(lesson.id) { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 110.dp)) {
@@ -91,9 +81,9 @@ jobs:
             }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 110.dp)) {
-        lesson.sentences.forEachIndexed { sentenceIndex, sentence ->
+            lesson.sentences.forEachIndexed { sentenceIndex, sentence ->
 '''
-          if old_start not in s: raise SystemExit('StoryScreen start block missing')
+          if old_start not in s: raise SystemExit('StoryScreen start missing')
           s = s.replace(old_start, new_start, 1)
 
           old_end = '''        if (isCompleted) {
@@ -135,19 +125,16 @@ jobs:
     }
 }
 '''
-          if old_end not in s: raise SystemExit('StoryScreen completion block missing')
-          s = s.replace(old_end, new_end, 1)
-          p.write_text(s)
+          if old_end not in s: raise SystemExit('completion block missing')
+          p.write_text(s.replace(old_end, new_end, 1))
 
-          # 3) Remaining reinforcement sentence noun phrase: ihre Aufgaben.
           p = Path('app/src/main/java/de/bascurt/almancaokuyucu/data/FocusedLessons.kt')
           s = p.read_text()
           if 'linkAt(12, "ihre Aufgaben"' not in s:
               anchor = '                linkAt(11, "den Kollegen", "çalışma arkadaşları", "den Kollegen → çalışma arkadaşları. Dativ çoğul artikel + isim aynı isim grubudur."),\n'
               addition = '                linkAt(12, "ihre Aufgaben", "görevlerini", "ihre Aufgaben → onun görevleri / görevlerini. İyelik belirleyicisi + isim aynı isim grubudur; seçilen koyu, diğer kelime açık vurgulanır."),\n'
-              if anchor not in s: raise SystemExit('FocusedLessons final noun anchor missing')
-              s = s.replace(anchor, anchor + addition, 1)
-              p.write_text(s)
+              if anchor not in s: raise SystemExit('noun anchor missing')
+              p.write_text(s.replace(anchor, anchor + addition, 1))
           PY
       - name: Commit changes
         run: |
