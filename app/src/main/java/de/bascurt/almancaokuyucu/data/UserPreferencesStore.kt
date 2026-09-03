@@ -4,7 +4,11 @@ import android.content.Context
 import de.bascurt.almancaokuyucu.model.Lexeme
 
 data class UserPreferences(
-    val name: String = "Kullanıcı",
+    val name: String = "Zeynep",
+    val username: String = "zeynep",
+    val bio: String = "",
+    val profilePhotoUri: String = "",
+    val learningReason: String = "Günlük Almanca",
     val germanLevel: String = "A2",
     val dailyGoal: Int = 10,
     val themeMode: String = "system",
@@ -36,7 +40,11 @@ class UserPreferencesStore(context: Context) {
     private val prefs = context.getSharedPreferences("user_preferences", Context.MODE_PRIVATE)
 
     fun load(): UserPreferences = UserPreferences(
-        name = prefs.getString("name", "Kullanıcı") ?: "Kullanıcı",
+        name = prefs.getString("name", "Zeynep") ?: "Zeynep",
+        username = prefs.getString("username", "zeynep") ?: "zeynep",
+        bio = prefs.getString("bio", "") ?: "",
+        profilePhotoUri = prefs.getString("profile_photo_uri", "") ?: "",
+        learningReason = prefs.getString("learning_reason", "Günlük Almanca") ?: "Günlük Almanca",
         germanLevel = prefs.getString("german_level", "A2") ?: "A2",
         dailyGoal = prefs.getInt("daily_goal", 10),
         themeMode = prefs.getString("theme_mode", "system") ?: "system",
@@ -54,6 +62,10 @@ class UserPreferencesStore(context: Context) {
     fun save(value: UserPreferences) {
         prefs.edit()
             .putString("name", value.name)
+            .putString("username", value.username)
+            .putString("bio", value.bio)
+            .putString("profile_photo_uri", value.profilePhotoUri)
+            .putString("learning_reason", value.learningReason)
             .putString("german_level", value.germanLevel)
             .putInt("daily_goal", value.dailyGoal)
             .putString("theme_mode", value.themeMode)
