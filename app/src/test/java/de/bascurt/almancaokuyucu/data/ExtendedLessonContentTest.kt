@@ -1,9 +1,9 @@
 package de.bascurt.almancaokuyucu.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ExtendedLessonContentTest {
@@ -46,18 +46,18 @@ class ExtendedLessonContentTest {
     }
 
     @Test
-    fun prepositionObjectLinksAreConsistentAcrossExamples() {
+    fun verbPrepositionStrongLinksDoNotCaptureTheirObjects() {
         val lesson = SampleLessons.all.first()
 
         val breakfastSentence = lesson.sentences[4]
         val nach = breakfastSentence.first { clean(it.text) == "nach" }
         val breakfast = breakfastSentence.first { clean(it.text) == "frühstück" }
-        assertTrue(sharedContextLink(nach.lexeme.contextLinkIds, breakfast.lexeme.contextLinkIds))
+        assertFalse(sharedContextLink(nach.lexeme.contextLinkIds, breakfast.lexeme.contextLinkIds))
 
         val workdaySentence = lesson.sentences[10]
         val ueber = workdaySentence.first { clean(it.text) == "über" }
         val arbeitstag = workdaySentence.first { clean(it.text) == "arbeitstag" }
-        assertTrue(sharedContextLink(ueber.lexeme.contextLinkIds, arbeitstag.lexeme.contextLinkIds))
+        assertFalse(sharedContextLink(ueber.lexeme.contextLinkIds, arbeitstag.lexeme.contextLinkIds))
     }
 
     private fun auditSentence(text: String) = ExtendedLessonFactory.lesson(
