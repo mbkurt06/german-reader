@@ -21,21 +21,18 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.bascurt.almancaokuyucu.data.UserPreferencesStore
 
-private val AuthTurquoise = Color(0xFF1FA7A5)
-private val AuthDark = Color(0xFF102F3C)
 private const val LOCAL_USERNAME = "zeynep"
 private const val LOCAL_PASSWORD = "zeynep123"
 
@@ -50,14 +47,9 @@ class LauncherActivity : ComponentActivity() {
             return
         }
 
+        val preferences = UserPreferencesStore(this).load()
         setContent {
-            MaterialTheme(
-                colorScheme = lightColorScheme(
-                    primary = AuthTurquoise,
-                    secondary = AuthTurquoise,
-                    background = Color(0xFFF4F7F8)
-                )
-            ) {
+            GermanReaderTheme(preferences) {
                 LocalAccountEntryScreen(
                     onLogin = { username, password ->
                         if (username.trim().lowercase() == LOCAL_USERNAME && password == LOCAL_PASSWORD) {
@@ -98,7 +90,7 @@ private fun LocalAccountEntryScreen(
             .padding(22.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        Text("Almanca Okuyucu", color = AuthDark, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+        Text("Almanca Okuyucu", color = MaterialTheme.colorScheme.onBackground, fontSize = 30.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
         Text(
             "Şimdilik lokal kullanıcı hesabıyla giriş yapıyoruz. Gerçek hesap sistemi daha sonra eklenecek.",
@@ -110,7 +102,7 @@ private fun LocalAccountEntryScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(Modifier.padding(18.dp)) {
                 Text("Giriş", fontSize = 22.sp, fontWeight = FontWeight.Bold)
@@ -153,10 +145,10 @@ private fun LocalAccountEntryScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = AuthTurquoise.copy(alpha = .10f))
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = .10f))
         ) {
             Column(Modifier.padding(15.dp)) {
-                Text("Test hesabı", color = AuthDark, fontWeight = FontWeight.Bold)
+                Text("Test hesabı", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                 Text("Kullanıcı adı: zeynep", fontSize = 13.sp)
                 Text("Şifre: zeynep123", fontSize = 13.sp)
             }
