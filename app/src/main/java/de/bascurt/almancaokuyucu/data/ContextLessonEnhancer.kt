@@ -116,7 +116,9 @@ internal object ContextLessonEnhancer {
         sentenceIndex: Int,
         sentence: MutableList<ReadingToken>
     ): List<ReadingToken> {
-        val nounPrefixClasses = setOf("Artikel", "Belirleyici", "Sıfat", "Zamir")
+        // Kişi zamirleri (sie, er, ich, wir vb.) isim grubunun parçası değildir.
+        // Bu yüzden otomatik isim grubuna yalnız artikel/belirleyici/sıfat girer.
+        val nounPrefixClasses = setOf("Artikel", "Belirleyici", "Sıfat")
 
         fun addWeakLink(indices: List<Int>, relation: String) {
             if (indices.size < 2) return
@@ -130,7 +132,7 @@ internal object ContextLessonEnhancer {
             }
         }
 
-        // Artikel / iyelik / sıfat + isim kendi içinde bağlı kalır.
+        // Artikel / iyelik-belirleyici / sıfat + isim kendi içinde bağlı kalır.
         for (nounIndex in sentence.indices) {
             if (sentence[nounIndex].lexeme.wordClass != "İsim") continue
             var start = nounIndex
