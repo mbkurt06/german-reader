@@ -214,7 +214,7 @@ private fun MainShell(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(modifier = Modifier.width(310.dp)) {
+            ModalDrawerSheet(modifier = Modifier.fillMaxWidth(.60f)) {
                 DrawerHeader(preferences, saved.size, completedLessonIds.size) { navigate(AppPage.PROFILE); scope.launch { drawerState.close() } }
                 HorizontalDivider()
                 DrawerItem("⌂", uiText(lang, "Ana Sayfa"), page == AppPage.HOME) { navigate(AppPage.HOME); scope.launch { drawerState.close() } }
@@ -254,13 +254,27 @@ DrawerItem("⚙", uiText(lang, "Ayarlar"), page == AppPage.SETTINGS) { navigate(
                     AppPage.PROFILE -> ProfileScreen(preferences, onPreferences, saved.size, completedLessonIds.size, stats)
                     AppPage.READ_STORIES -> ReadStoriesScreen(lessons, completedLessonIds, saved, onLesson)
                     AppPage.STATS -> StatsScreen(saved, completedLessonIds, stats)
-                    AppPage.SETTINGS -> SettingsScreen(
-                        prefs = settingsDraft,
-                        savedPrefs = preferences,
-                        onChange = { settingsDraft = it },
-                        onSave = { onPreferences(settingsDraft) },
-                        onFullReset = onFullReset
-                    )
+                    AppPage.SETTINGS -> {
+                        val previewDark = when (settingsDraft.themeMode) {
+                            "dark" -> true
+                            "light" -> false
+                            else -> isSystemInDarkTheme()
+                        }
+                        val previewScheme = if (previewDark) {
+                            darkColorScheme(primary = Turquoise, secondary = Turquoise)
+                        } else {
+                            lightColorScheme(primary = Turquoise, secondary = Turquoise, background = SoftBg)
+                        }
+                        MaterialTheme(colorScheme = previewScheme) {
+                            SettingsScreen(
+                                prefs = settingsDraft,
+                                savedPrefs = preferences,
+                                onChange = { settingsDraft = it },
+                                onSave = { onPreferences(settingsDraft) },
+                                onFullReset = onFullReset
+                            )
+                        }
+                    }
                     AppPage.ABOUT -> AboutScreen()
                     else -> Unit
                 }
@@ -612,12 +626,7 @@ private fun StoryScreen(
     var showDisplayControls by remember(lesson.id) { mutableStateOf(false) }
     val translations = remember(lesson.id, translationLanguage) { StoryTranslationCatalog.translationsFor(lesson, translationLanguage) }
     val activity = LocalContext.current as? Activity
-    val appDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val nightMode = when (readerThemeMode) {
-        "dark" -> true
-        "light" -> false
-        else -> appDark
-    }
+    val nightMode = readerThemeMode == "dark"
     val readerBackground = if (nightMode) Color(0xFF0B1014) else MaterialTheme.colorScheme.background
     val readerTextColor = if (nightMode) Color(0xFFE9EEF0) else MaterialTheme.colorScheme.onBackground
 
@@ -872,19 +881,32 @@ private fun StoryScreen(
                     shape = RoundedCornerShape(22.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
-                        Text("Okuma teması", fontWeight = FontWeight.SemiBold)
-                        Text("Sadece hikâye okuma ekranını etkiler; uygulamanın genel temasını değiştirmez.", fontSize = 12.sp, color = Color.White.copy(alpha = .65f))
-                        Spacer(Modifier.height(10.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                            listOf("app" to "Uygulama", "light" to "Açık", "dark" to "Koyu").forEach { (id, label) ->
-                                FilterChip(
-                                    selected = readerThemeMode == id,
-                                    onClick = { onReaderThemeModeChange(id) },
-                                    label = { Text(label) }
-                                )
-                            }
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            color = Color.White.copy(alpha = .08f),
+                            contentColor = Color.White,
+                            shape = CircleShape,
+                            modifier = Modifier.size(54.dp).clickable { onReaderThemeModeChange(if (nightMode) "light" else "dark") }
+                        ) { Box(contentAlignment = Alignment.Center) { Text("☾", fontSize = 30.sp) } }
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Gece modu", fontWeight = FontWeight.SemiBold)
+                            Text("Yalnızca hikâye okuma alanını koyu yapar.", fontSize = 12.sp, color = Color.White.copy(alpha = .65f))
                         }
+                        Switch(
+                            checked = nightMode,
+                            onCheckedChange = { enabled -> onReaderThemeModeChange(if (enabled) "dark" else "light") },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Turquoise,
+                                uncheckedThumbColor = Color.White,
+                                uncheckedTrackColor = Color.White.copy(alpha = .18f),
+                                uncheckedBorderColor = Color.White.copy(alpha = .38f)
+                            )
+                        )
                     }
                 }
             }
@@ -1279,16 +1301,31 @@ private fun SettingsScreen(
                 }
                 Spacer(Modifier.height(12.dp))
                 Text(uiText(lang, "Arayüz yazı boyutu"), fontWeight = FontWeight.Bold)
-                Text("${(prefs.uiScale * 100).toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Slider(value = prefs.uiScale, onValueChange = { onChange(prefs.copy(uiScale = it)); savedNotice = false }, valueRange = .85f..1.25f)
+                StepValueControl(
+                    valueText = "${(prefs.uiScale * 100).toInt()}%",
+                    canDecrease = prefs.uiScale > .85f,
+                    canIncrease = prefs.uiScale < 1.25f,
+                    onDecrease = { onChange(prefs.copy(uiScale = (prefs.uiScale - .05f).coerceAtLeast(.85f))); savedNotice = false },
+                    onIncrease = { onChange(prefs.copy(uiScale = (prefs.uiScale + .05f).coerceAtMost(1.25f))); savedNotice = false },
+                    decreaseLabel = "A⁻",
+                    increaseLabel = "A⁺"
+                )
             }
             SettingCard(uiText(lang, "Okuma")) {
                 SwitchSetting(uiText(lang, "Seçilen kelimeyi vurgula"), prefs.highlightEnabled) { onChange(prefs.copy(highlightEnabled = it)); savedNotice = false }
                 SwitchSetting(uiText(lang, "Ayrıntılı açıklamaları göster"), prefs.detailedExplanations) { onChange(prefs.copy(detailedExplanations = it)); savedNotice = false }
             }
             SettingCard(uiText(lang, "Sınav")) {
-                Text("${uiText(lang, "Hikâye sınavında soru sayısı")}: ${prefs.quizQuestionCount}", fontWeight = FontWeight.Bold)
-                Slider(value = prefs.quizQuestionCount.toFloat(), onValueChange = { onChange(prefs.copy(quizQuestionCount = it.toInt())); savedNotice = false }, valueRange = 5f..20f, steps = 14)
+                Text(uiText(lang, "Hikâye sınavında soru sayısı"), fontWeight = FontWeight.Bold)
+                StepValueControl(
+                    valueText = "${prefs.quizQuestionCount}",
+                    canDecrease = prefs.quizQuestionCount > 5,
+                    canIncrease = prefs.quizQuestionCount < 20,
+                    onDecrease = { onChange(prefs.copy(quizQuestionCount = (prefs.quizQuestionCount - 1).coerceAtLeast(5))); savedNotice = false },
+                    onIncrease = { onChange(prefs.copy(quizQuestionCount = (prefs.quizQuestionCount + 1).coerceAtMost(20))); savedNotice = false },
+                    decreaseLabel = "−",
+                    increaseLabel = "+"
+                )
             }
             Button(
                 onClick = { onSave(); savedNotice = true },
@@ -1337,6 +1374,32 @@ private fun LanguageDropdown(selected: String, appLanguage: String, onSelected: 
                     onClick = { onSelected(code); expanded = false }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun StepValueControl(
+    valueText: String,
+    canDecrease: Boolean,
+    canIncrease: Boolean,
+    onDecrease: () -> Unit,
+    onIncrease: () -> Unit,
+    decreaseLabel: String = "−",
+    increaseLabel: String = "+"
+) {
+    Spacer(Modifier.height(8.dp))
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Surface(color = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface, shape = CircleShape, modifier = Modifier.size(54.dp).clickable(enabled = canDecrease, onClick = onDecrease)) {
+            Box(contentAlignment = Alignment.Center) { Text(decreaseLabel, fontSize = 22.sp, fontWeight = FontWeight.SemiBold) }
+        }
+        Spacer(Modifier.weight(1f))
+        Surface(color = Turquoise.copy(alpha = .13f), shape = RoundedCornerShape(11.dp)) {
+            Text(valueText, Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = Turquoise, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.weight(1f))
+        Surface(color = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface, shape = CircleShape, modifier = Modifier.size(54.dp).clickable(enabled = canIncrease, onClick = onIncrease)) {
+            Box(contentAlignment = Alignment.Center) { Text(increaseLabel, fontSize = 24.sp, fontWeight = FontWeight.SemiBold) }
         }
     }
 }

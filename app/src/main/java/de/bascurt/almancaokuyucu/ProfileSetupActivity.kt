@@ -231,8 +231,20 @@ private fun LocalProfileEditor(
             }
         }
 
-        Text("Günlük hedef: ${goal.toInt()} soru", fontWeight = FontWeight.Bold)
-        Slider(value = goal, onValueChange = { goal = it }, valueRange = 5f..50f, steps = 8)
+        Text("Günlük hedef", fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Surface(color = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface, shape = CircleShape, modifier = Modifier.size(54.dp).clickable(enabled = goal > 5f) { goal = (goal - 5f).coerceAtLeast(5f) }) {
+                Box(contentAlignment = Alignment.Center) { Text("−", fontSize = 24.sp, fontWeight = FontWeight.SemiBold) }
+            }
+            Spacer(Modifier.weight(1f))
+            Surface(color = ProfileTurquoise.copy(alpha = .13f), shape = RoundedCornerShape(11.dp)) {
+                Text("${goal.toInt()} soru", Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = ProfileTurquoise, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.weight(1f))
+            Surface(color = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface, shape = CircleShape, modifier = Modifier.size(54.dp).clickable(enabled = goal < 50f) { goal = (goal + 5f).coerceAtMost(50f) }) {
+                Box(contentAlignment = Alignment.Center) { Text("+", fontSize = 24.sp, fontWeight = FontWeight.SemiBold) }
+            }
+        }
 
         Surface(
             color = MaterialTheme.colorScheme.primary.copy(alpha = .10f),
