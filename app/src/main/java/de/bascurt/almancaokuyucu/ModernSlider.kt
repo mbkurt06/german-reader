@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SliderColors
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -86,13 +88,15 @@ private object ReaderControlBridge {
     }
 }
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun Slider(
     value: Float,
     onValueChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
-    steps: Int = 0
+    steps: Int = 0,
+    colors: SliderColors = SliderDefaults.colors()
 ) {
     var trackWidthPx by remember { mutableFloatStateOf(1f) }
     val density = LocalDensity.current
