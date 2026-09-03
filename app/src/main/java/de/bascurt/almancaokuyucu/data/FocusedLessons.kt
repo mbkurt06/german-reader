@@ -39,14 +39,22 @@ internal object FocusedLessons {
                 "Bir sonraki adım hakkında başka bir kişiyle kısaca konuşuyor.",
                 "Son olarak yerini topluyor ve günü memnun bir şekilde bitiriyor."
             ),
-            phrases = commonPhrases() + listOf(
-                phrase("am Morgen", "sabah", "Bu cümlede ‘am Morgen’ birlikte zaman bildirir; ‘am’ ve ‘Morgen’ ayrı ayrı çevrilmez."),
-                phrase("an der Rezeption", "resepsiyonda", "Bu kullanım bulunduğu yeri anlatır: ‘an der Rezeption’ = resepsiyonda."),
-                phrase("nach dem Frühstück", "kahvaltıyı / kahvaltı hakkında", "Buradaki ‘nach’ sormak fiiliyle birlikte ‘fragen nach’ yapısının parçasıdır; zaman anlamındaki ‘kahvaltıdan sonra’ değildir."),
-                phrase("am Mittag", "öğlen", "‘am Mittag’ birlikte öğle vaktini anlatır."),
-                phrase("nach der Pause", "moladan sonra", "Bu cümlede ‘nach’ zamansal kullanılır: moladan sonra."),
-                phrase("am Abend", "akşam", "‘am Abend’ birlikte akşam vaktini anlatır."),
-                phrase("ersten Arbeitstag", "ilk iş günü", "Bu cümlede ifade Elif'in işe başladığı ilk günü anlatır.")
+            phrases = listOf(
+                link("im Hotel", "otelde", "im Hotel → otelde. im = in + dem; bir yerin içinde bulunmayı anlatır."),
+                link("am Morgen", "sabah", "am Morgen → sabah / sabahleyin. am = an + dem; burada zaman bildirir."),
+                link("die ersten Fragen von den Gästen", "misafirlerin ilk soruları", "die ersten Fragen von den Gästen → misafirlerin ilk soruları. von burada soruların kimden geldiğini / kime ait olduğunu bağlar."),
+                link("noch einmal", "bir kez daha", "noch einmal → bir kez daha / tekrar; eylemin tekrarlandığını anlatır."),
+                link("am Mittag", "öğlen", "am Mittag → öğlen. am = an + dem; burada zaman bildirir."),
+                link("mit den Kollegen", "çalışma arkadaşlarıyla", "mit den Kollegen → çalışma arkadaşlarıyla. mit burada beraberliği anlatır ve Dativ alır."),
+                link("nach der Pause", "moladan sonra", "nach der Pause → moladan sonra. nach burada zamansal kullanılır ve Dativ alır."),
+                link("an der Rezeption", "resepsiyonda", "an der Rezeption → resepsiyonda. an burada bulunulan yeri anlatır."),
+                link("am Arbeitsplatz", "iş yerinde", "am Arbeitsplatz → iş yerinde. am = an + dem; burada konum bildirir."),
+                link("bei Bedarf", "gerektiğinde", "bei Bedarf → gerektiğinde / ihtiyaç hâlinde. bei burada koşul/durum bildirir ve Dativ alır."),
+                link("am Abend", "akşam", "am Abend → akşam. am = an + dem; burada zaman bildirir."),
+                link("mit ihrer Chefin", "şefiyle", "mit ihrer Chefin → şefiyle. mit beraberliği anlatır ve Dativ alır."),
+                link("über den ersten Arbeitstag", "ilk iş günü hakkında", "über den ersten Arbeitstag → ilk iş günü hakkında. über burada konuşulan konuyu belirtir."),
+                link("zum Schluss", "son olarak", "zum Schluss → son olarak / en sonunda. zum = zu + dem; ifade burada sıralama/zaman anlamı verir."),
+                link("von den Kollegen", "çalışma arkadaşlarıyla / çalışma arkadaşlarından", "von den Kollegen → çalışma arkadaşlarından/arkadaşlarıyla vedalaşma bağlamı. von Dativ alır.")
             )
         ),
         E.apply(
@@ -228,6 +236,13 @@ internal object FocusedLessons {
         phrase("noch einmal", "bir kez daha / tekrar", "Bu iki kelime birlikte eylemin tekrarlandığını anlatır."),
         phrase("bei Bedarf", "gerektiğinde / ihtiyaç hâlinde", "‘bei Bedarf’ birlikte kullanılan kalıp bir ifadedir."),
         phrase("in Ruhe", "sakin bir şekilde / rahatça", "Bu kullanım eylemin acele etmeden, sakin biçimde yapılmasını anlatır.")
+    )
+
+    private fun link(text: String, meaning: String, explanation: String) = ContextPhrase(
+        words = text.lowercase().split(" "),
+        meaning = meaning,
+        explanation = explanation,
+        weakLink = true
     )
 
     private fun phrase(text: String, meaning: String, explanation: String) = ContextPhrase(

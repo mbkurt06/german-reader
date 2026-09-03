@@ -21,7 +21,9 @@ data class Lexeme(
     val accusativeNote: String? = null,
     val positive: String? = null,
     val comparative: String? = null,
-    val superlative: String? = null
+    val superlative: String? = null,
+    val contextLinkId: String? = null,
+    val contextUsage: String? = null
 )
 
 data class ReadingToken(val text: String, val lexeme: Lexeme)

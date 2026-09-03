@@ -375,6 +375,7 @@ private fun MeaningPanel(selected: Lexeme?, isSaved: Boolean, detailed: Boolean,
                 Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) { DarkPill("Kelime türü: ${selected.wordClass}"); selected.grammar?.let { DarkPill(it) } }
                 MorphologyDetails(selected)
                 if (detailed) selected.explanation?.let { Spacer(Modifier.height(7.dp)); Text(it, color = Color(0xFFD5E4E8), fontSize = 14.sp, lineHeight = 19.sp) }
+                selected.contextUsage?.let { Spacer(Modifier.height(7.dp)); DetailLine("Bu cümlede", it) }
                 Spacer(Modifier.height(8.dp))
             }
         }
@@ -443,12 +444,17 @@ private fun StoryScreen(
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 sentence.forEach { token ->
                     val active = highlightEnabled && selected?.id == token.lexeme.id
+                    val linked = highlightEnabled && !active && selected?.contextLinkId != null &&
+                        selected.contextLinkId == token.lexeme.contextLinkId
                     Text(
                         token.text,
                         fontSize = textSize.sp,
                         lineHeight = (textSize + 10).sp,
                         color = if (active) Color.White else MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.background(if (active) Turquoise else Color.Transparent, RoundedCornerShape(7.dp)).clickable { onSelect(token.lexeme) }.padding(horizontal = 2.dp, vertical = 2.dp)
+                        modifier = Modifier.background(
+                            when { active -> Turquoise; linked -> Turquoise.copy(alpha = .24f); else -> Color.Transparent },
+                            RoundedCornerShape(7.dp)
+                        ).clickable { onSelect(token.lexeme) }.padding(horizontal = 2.dp, vertical = 2.dp)
                     )
                 }
             }

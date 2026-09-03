@@ -7,7 +7,8 @@ import de.bascurt.almancaokuyucu.model.ReadingToken
 internal data class ContextPhrase(
     val words: List<String>,
     val meaning: String,
-    val explanation: String
+    val explanation: String,
+    val weakLink: Boolean = false
 )
 
 /**
@@ -43,17 +44,29 @@ internal object ContextLessonEnhancer {
             for (start in 0..keys.size - wanted.size) {
                 if (keys.subList(start, start + wanted.size) != wanted) continue
                 val shown = sentence.subList(start, start + wanted.size).joinToString(" ") { it.text.trimEnd('.', ',', ';', '!', '?') }
-                val grouped = Lexeme(
-                    id = "$lessonId-context-$sentenceIndex-$start-${wanted.joinToString("-")}",
-                    base = shown,
-                    meaning = phrase.meaning,
-                    type = "Kelime grubu",
-                    explanation = phrase.explanation,
-                    quizEligible = true,
-                    wordClass = "Kelime grubu"
-                )
-                for (index in start until start + wanted.size) {
-                    result[index] = result[index].copy(lexeme = grouped)
+                val linkId = "$lessonId-context-$sentenceIndex-$start-${wanted.joinToString("-")}"
+                if (phrase.weakLink) {
+                    for (index in start until start + wanted.size) {
+                        val original = result[index].lexeme
+                        result[index] = result[index].copy(lexeme = original.copy(
+                            id = "${original.id}-ctx-$sentenceIndex-$start-$index",
+                            contextLinkId = linkId,
+                            contextUsage = phrase.explanation
+                        ))
+                    }
+                } else {
+                    val grouped = Lexeme(
+                        id = linkId,
+                        base = shown,
+                        meaning = phrase.meaning,
+                        type = "Kelime grubu",
+                        explanation = phrase.explanation,
+                        quizEligible = true,
+                        wordClass = "Kelime grubu"
+                    )
+                    for (index in start until start + wanted.size) {
+                        result[index] = result[index].copy(lexeme = grouped)
+                    }
                 }
             }
         }
