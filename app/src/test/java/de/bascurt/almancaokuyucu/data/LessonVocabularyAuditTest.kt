@@ -48,8 +48,7 @@ class LessonVocabularyAuditTest {
 
     @Test
     fun aufwaermenDoesNotCaptureAufDemFahrrad() {
-        val lesson = SampleLessons.all.first { it.id == "b1-fitness" }
-        val sentence = lesson.sentences.first { row -> row.any { it.text.startsWith("wärmt") } }
+        val sentence = auditSentence("Er wärmt sich zehn Minuten auf dem Fahrrad auf.")
         val warmt = sentence.first { it.text.startsWith("wärmt") }
         val sich = sentence.first { it.text.trim('.', ',') == "sich" }
         val aufs = sentence.filter { it.text.trim('.', ',') == "auf" }
@@ -63,8 +62,7 @@ class LessonVocabularyAuditTest {
 
     @Test
     fun anmeldenDoesNotCaptureAnDerRezeption() {
-        val lesson = SampleLessons.all.first { it.id == "a2-kinderarzt" }
-        val sentence = lesson.sentences.first { row -> row.any { it.text.startsWith("meldet") } }
+        val sentence = auditSentence("Er meldet sich an der Rezeption an.")
         val verb = sentence.first { it.text.startsWith("meldet") }
         val ans = sentence.filter { it.text.trim('.', ',') == "an" }
 
@@ -75,8 +73,7 @@ class LessonVocabularyAuditTest {
 
     @Test
     fun normalAufAfterStellenStaysAPreposition() {
-        val lesson = SampleLessons.all.first { it.id == "a2-kueche" }
-        val sentence = lesson.sentences.first()
+        val sentence = auditSentence("Er stellt den Topf auf den Herd.")
         val verb = sentence.first { it.text.startsWith("stellt") }
         val auf = sentence.first { it.text == "auf" }
 
@@ -86,14 +83,7 @@ class LessonVocabularyAuditTest {
 
     @Test
     fun separableParticleBeforeUndStaysInsideItsOwnClause() {
-        val lesson = ExtendedLessonFactory.lesson(
-            id = "audit-clause-boundary",
-            title = "Audit",
-            level = "A2",
-            summary = "test",
-            texts = listOf("Er macht das Licht an und sie schaut die Anzeige an.")
-        )
-        val sentence = lesson.sentences.first()
+        val sentence = auditSentence("Er macht das Licht an und sie schaut die Anzeige an.")
         val macht = sentence.first { it.text == "macht" }
         val ans = sentence.filter { it.text.trim('.', ',') == "an" }
 
@@ -102,6 +92,14 @@ class LessonVocabularyAuditTest {
         assertEquals(macht.lexeme.id, ans.first().lexeme.id)
         assertNotEquals(macht.lexeme.id, ans.last().lexeme.id)
     }
+
+    private fun auditSentence(text: String) = ExtendedLessonFactory.lesson(
+        id = "audit-regression",
+        title = "Audit",
+        level = "A2",
+        summary = "test",
+        texts = listOf(text)
+    ).sentences.first()
 
     private fun cleanForAudit(text: String): String = text
         .trim('"', '„', '“', '.', ',', ':', ';', '!', '?', '(', ')')
