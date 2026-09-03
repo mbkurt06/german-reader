@@ -2,6 +2,7 @@ package de.bascurt.almancaokuyucu
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import de.bascurt.almancaokuyucu.data.LearningStats
 import de.bascurt.almancaokuyucu.data.SampleLessons
 import de.bascurt.almancaokuyucu.data.SavedLexemeStore
+import de.bascurt.almancaokuyucu.data.StoryTranslationCatalog
 import de.bascurt.almancaokuyucu.data.UserPreferences
 import de.bascurt.almancaokuyucu.data.UserPreferencesStore
 import de.bascurt.almancaokuyucu.model.*
@@ -171,17 +173,34 @@ private fun MainShell(
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    var settingsDraft by remember(preferences) { mutableStateOf(preferences) }
+    var pendingPage by remember { mutableStateOf<AppPage?>(null) }
+    var showUnsavedDialog by remember { mutableStateOf(false) }
+    val settingsDirty = settingsDraft != preferences
+    val lang = preferences.appLanguage
     val shellPages = setOf(AppPage.HOME, AppPage.MY_WORDS, AppPage.STUDY_MENU, AppPage.PROFILE, AppPage.READ_STORIES, AppPage.STATS, AppPage.SETTINGS, AppPage.ABOUT)
+
+    fun navigate(target: AppPage) {
+        if (page == AppPage.SETTINGS && target != AppPage.SETTINGS && settingsDirty) {
+            pendingPage = target
+            showUnsavedDialog = true
+        } else {
+            onPage(target)
+        }
+    }
+
+    BackHandler(enabled = page == AppPage.SETTINGS) { navigate(AppPage.HOME) }
+
     val title = when (page) {
-        AppPage.HOME -> "Almanca Okuyucu"
-        AppPage.MY_WORDS -> "Kelimelerim"
-        AppPage.STUDY_MENU -> "Çalış"
-        AppPage.PROFILE -> "Profilim"
-        AppPage.READ_STORIES -> "Tamamlanan Hikâyeler"
-        AppPage.STATS -> "İstatistikler"
-        AppPage.SETTINGS -> "Ayarlar"
-        AppPage.ABOUT -> "Hakkında"
-        else -> "Almanca Okuyucu"
+        AppPage.HOME -> uiText(lang, "Almanca Okuyucu")
+        AppPage.MY_WORDS -> uiText(lang, "Kelimelerim")
+        AppPage.STUDY_MENU -> uiText(lang, "Çalış")
+        AppPage.PROFILE -> uiText(lang, "Profilim")
+        AppPage.READ_STORIES -> uiText(lang, "Tamamlanan Hikâyeler")
+        AppPage.STATS -> uiText(lang, "İstatistikler")
+        AppPage.SETTINGS -> uiText(lang, "Ayarlar")
+        AppPage.ABOUT -> uiText(lang, "Hakkında")
+        else -> uiText(lang, "Almanca Okuyucu")
     }
 
     ModalNavigationDrawer(
@@ -190,15 +209,15 @@ private fun MainShell(
             ModalDrawerSheet(modifier = Modifier.width(310.dp)) {
                 DrawerHeader(preferences, saved.size, completedLessonIds.size)
                 HorizontalDivider()
-                DrawerItem("⌂", "Ana Sayfa", page == AppPage.HOME) { onPage(AppPage.HOME); scope.launch { drawerState.close() } }
-                DrawerItem("★", "Kelimelerim", page == AppPage.MY_WORDS) { onPage(AppPage.MY_WORDS); scope.launch { drawerState.close() } }
-                DrawerItem("✓", "Tamamlanan Hikâyeler", page == AppPage.READ_STORIES) { onPage(AppPage.READ_STORIES); scope.launch { drawerState.close() } }
-                DrawerItem("▶", "Çalışmalarım", page == AppPage.STUDY_MENU) { onPage(AppPage.STUDY_MENU); scope.launch { drawerState.close() } }
-                DrawerItem("▥", "İstatistikler", page == AppPage.STATS) { onPage(AppPage.STATS); scope.launch { drawerState.close() } }
+                DrawerItem("⌂", uiText(lang, "Ana Sayfa"), page == AppPage.HOME) { navigate(AppPage.HOME); scope.launch { drawerState.close() } }
+                DrawerItem("★", uiText(lang, "Kelimelerim"), page == AppPage.MY_WORDS) { navigate(AppPage.MY_WORDS); scope.launch { drawerState.close() } }
+                DrawerItem("✓", uiText(lang, "Tamamlanan Hikâyeler"), page == AppPage.READ_STORIES) { navigate(AppPage.READ_STORIES); scope.launch { drawerState.close() } }
+                DrawerItem("▶", uiText(lang, "Çalışmalarım"), page == AppPage.STUDY_MENU) { navigate(AppPage.STUDY_MENU); scope.launch { drawerState.close() } }
+                DrawerItem("▥", uiText(lang, "İstatistikler"), page == AppPage.STATS) { navigate(AppPage.STATS); scope.launch { drawerState.close() } }
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                DrawerItem("●", "Profilim", page == AppPage.PROFILE) { onPage(AppPage.PROFILE); scope.launch { drawerState.close() } }
-                DrawerItem("⚙", "Ayarlar", page == AppPage.SETTINGS) { onPage(AppPage.SETTINGS); scope.launch { drawerState.close() } }
-                DrawerItem("i", "Uygulama hakkında", page == AppPage.ABOUT) { onPage(AppPage.ABOUT); scope.launch { drawerState.close() } }
+                DrawerItem("●", uiText(lang, "Profilim"), page == AppPage.PROFILE) { navigate(AppPage.PROFILE); scope.launch { drawerState.close() } }
+                DrawerItem("⚙", uiText(lang, "Ayarlar"), page == AppPage.SETTINGS) { navigate(AppPage.SETTINGS); scope.launch { drawerState.close() } }
+                DrawerItem("i", uiText(lang, "Uygulama hakkında"), page == AppPage.ABOUT) { navigate(AppPage.ABOUT); scope.launch { drawerState.close() } }
             }
         }
     ) {
@@ -213,9 +232,9 @@ private fun MainShell(
             bottomBar = {
                 if (page in shellPages) {
                     NavigationBar {
-                        NavigationBarItem(selected = page == AppPage.HOME, onClick = { onPage(AppPage.HOME) }, icon = { Text("⌂", fontSize = 21.sp) }, label = { Text("Hikâyeler") })
-                        NavigationBarItem(selected = page == AppPage.MY_WORDS, onClick = { onPage(AppPage.MY_WORDS) }, icon = { Text("★", fontSize = 20.sp) }, label = { Text("Kelimelerim") })
-                        NavigationBarItem(selected = page == AppPage.STUDY_MENU, onClick = { onPage(AppPage.STUDY_MENU) }, icon = { Text("▶", fontSize = 19.sp) }, label = { Text("Çalış") })
+                        NavigationBarItem(selected = page == AppPage.HOME, onClick = { navigate(AppPage.HOME) }, icon = { Text("⌂", fontSize = 21.sp) }, label = { Text(uiText(lang, "Hikâyeler")) })
+                        NavigationBarItem(selected = page == AppPage.MY_WORDS, onClick = { navigate(AppPage.MY_WORDS) }, icon = { Text("★", fontSize = 20.sp) }, label = { Text(uiText(lang, "Kelimelerim")) })
+                        NavigationBarItem(selected = page == AppPage.STUDY_MENU, onClick = { navigate(AppPage.STUDY_MENU) }, icon = { Text("▶", fontSize = 19.sp) }, label = { Text(uiText(lang, "Çalış")) })
                     }
                 }
             }
@@ -228,12 +247,47 @@ private fun MainShell(
                     AppPage.PROFILE -> ProfileScreen(preferences, onPreferences, saved.size, completedLessonIds.size, stats)
                     AppPage.READ_STORIES -> ReadStoriesScreen(lessons, completedLessonIds, saved, onLesson)
                     AppPage.STATS -> StatsScreen(saved, completedLessonIds, stats)
-                    AppPage.SETTINGS -> SettingsScreen(preferences, onPreferences, onFullReset)
+                    AppPage.SETTINGS -> SettingsScreen(
+                        prefs = settingsDraft,
+                        savedPrefs = preferences,
+                        onChange = { settingsDraft = it },
+                        onSave = { onPreferences(settingsDraft) },
+                        onFullReset = onFullReset
+                    )
                     AppPage.ABOUT -> AboutScreen()
                     else -> Unit
                 }
             }
         }
+    }
+
+    if (showUnsavedDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedDialog = false; pendingPage = null },
+            title = { Text(uiText(lang, "Kaydedilmemiş değişiklikler")) },
+            text = { Text(uiText(lang, "Değişiklikler kaydedilsin mi?")) },
+            confirmButton = {
+                Button(onClick = {
+                    val target = pendingPage
+                    onPreferences(settingsDraft)
+                    showUnsavedDialog = false
+                    pendingPage = null
+                    target?.let(onPage)
+                }) { Text(uiText(lang, "Kaydet ve çık")) }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        val target = pendingPage
+                        settingsDraft = preferences
+                        showUnsavedDialog = false
+                        pendingPage = null
+                        target?.let(onPage)
+                    }) { Text(uiText(lang, "Kaydetmeden çık")) }
+                    TextButton(onClick = { showUnsavedDialog = false; pendingPage = null }) { Text(uiText(lang, "Vazgeç")) }
+                }
+            }
+        )
     }
 }
 
@@ -255,22 +309,23 @@ private fun MainShell(
 @Composable
 private fun ModernHomeScreen(lessons: List<ReaderLesson>, saved: List<Lexeme>, completedIds: Set<String>, prefs: UserPreferences, onLesson: (ReaderLesson) -> Unit) {
     val continueLesson = lessons.firstOrNull { it.id !in completedIds } ?: lessons.firstOrNull()
+    val lang = prefs.appLanguage
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = Dark), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(22.dp)) {
-                Text("Merhaba, ${prefs.name}", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                Text(if (lang == "tr") "Merhaba, ${prefs.name}" else "${prefs.name}", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(5.dp))
-                Text("Bugün Almanca için küçük bir adım yeter.", color = Color(0xFFD4E5E9))
+                Text(if (lang == "tr") "Bugün Almanca için küçük bir adım yeter." else uiText(lang, "Almanca Okuyucu"), color = Color(0xFFD4E5E9))
                 Spacer(Modifier.height(18.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatPill("${saved.size}", "kelime")
-                    StatPill("${completedIds.size}", "tamamlanan")
-                    StatPill("${prefs.dailyGoal}", "günlük hedef")
+                    StatPill("${saved.size}", uiText(lang, "Kelimeler"))
+                    StatPill("${completedIds.size}", uiText(lang, "Tamamlanan Hikâyeler"))
+                    StatPill("${prefs.dailyGoal}", "hedef")
                 }
             }
         }
         continueLesson?.let { lesson ->
-            Text("Çalışmaya devam et", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(if (lang == "tr") "Çalışmaya devam et" else uiText(lang, "Çalış"), fontSize = 20.sp, fontWeight = FontWeight.Bold)
             ElevatedCard(Modifier.fillMaxWidth().clickable { onLesson(lesson) }, shape = RoundedCornerShape(22.dp)) {
                 Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
                     LevelBadge(lesson.level)
@@ -283,7 +338,7 @@ private fun ModernHomeScreen(lessons: List<ReaderLesson>, saved: List<Lexeme>, c
                 }
             }
         }
-        Text("Hikâyeler", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text(uiText(lang, "Hikâyeler"), fontSize = 22.sp, fontWeight = FontWeight.Bold)
         lessons.forEach { lesson ->
             ElevatedCard(Modifier.fillMaxWidth().clickable { onLesson(lesson) }, shape = RoundedCornerShape(22.dp)) {
                 Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -295,7 +350,7 @@ private fun ModernHomeScreen(lessons: List<ReaderLesson>, saved: List<Lexeme>, c
                         Text(lesson.summary, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (lesson.id in completedIds) {
                             Spacer(Modifier.height(6.dp))
-                            Text("✓ Tamamlandı", color = Turquoise, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("✓ ${uiText(lang, "Hikâye tamamlandı")}", color = Turquoise, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                     Text("›", fontSize = 30.sp, color = Turquoise)
@@ -336,12 +391,12 @@ private fun ReaderScreen(
     var selectedSentenceIndex by remember(lesson.id) { mutableIntStateOf(-1) }
     val isSaved = selected?.let { item -> saved.any { it.id == item.id } } == true
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        if (tab == ReaderTab.STORY) MeaningPanel(selected, isSaved, preferences.detailedExplanations, { selected?.let(onToggleSaved) }, onHome)
+        if (tab == ReaderTab.STORY) MeaningPanel(selected, isSaved, preferences.detailedExplanations, preferences.appLanguage, { selected?.let(onToggleSaved) }, onHome)
         else SectionHeader(lesson.title, onHome)
-        ReaderTabs(tab) { tab = it }
+        ReaderTabs(tab, preferences.appLanguage) { tab = it }
         Box(Modifier.weight(1f)) {
             when (tab) {
-                ReaderTab.STORY -> StoryScreen(lesson, selected, selectedSentenceIndex, preferences.storyTextSize, preferences.highlightEnabled, isCompleted, onComplete) { sentenceIndex, lexeme -> selectedSentenceIndex = sentenceIndex; selected = lexeme }
+                ReaderTab.STORY -> StoryScreen(lesson, selected, selectedSentenceIndex, preferences.storyTextSize, preferences.highlightEnabled, preferences.translationLanguage, preferences.appLanguage, isCompleted, onComplete) { sentenceIndex, lexeme -> selectedSentenceIndex = sentenceIndex; selected = lexeme }
                 ReaderTab.QUIZ -> QuizScreen(lesson, preferences.quizQuestionCount)
                 ReaderTab.WORDS -> LessonWordsScreen(lesson, saved, onToggleSaved)
                 ReaderTab.GRAMMAR -> GrammarScreen(lesson)
@@ -351,36 +406,36 @@ private fun ReaderScreen(
 }
 
 @Composable
-private fun MeaningPanel(selected: Lexeme?, isSaved: Boolean, detailed: Boolean, onSave: () -> Unit, onHome: () -> Unit) {
+private fun MeaningPanel(selected: Lexeme?, isSaved: Boolean, detailed: Boolean, appLanguage: String, onSave: () -> Unit, onHome: () -> Unit) {
     Box(Modifier.fillMaxWidth().height(230.dp).background(Brush.verticalGradient(listOf(Color(0xFF07171F), Dark))).padding(horizontal = 22.dp, vertical = 14.dp)) {
-        Text("‹ Hikâyeler", color = Color.White, fontSize = 17.sp, modifier = Modifier.clickable(onClick = onHome).padding(6.dp))
+        Text("‹ ${uiText(appLanguage, "Hikâyeler")}", color = Color.White, fontSize = 17.sp, modifier = Modifier.clickable(onClick = onHome).padding(6.dp))
         Text(if (isSaved) "★" else "☆", color = if (selected == null) Color.White.copy(alpha = .35f) else Color.White, fontSize = 34.sp, modifier = Modifier.align(Alignment.TopEnd).clickable(enabled = selected != null, onClick = onSave).padding(4.dp))
         Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().heightIn(max = 165.dp).verticalScroll(rememberScrollState())) {
             if (selected == null) {
-                Text("Bir kelimeye dokun", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
+                Text(uiText(appLanguage, "Bir kelimeye dokun"), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(5.dp))
-                Text("Anlamı, kelime türü ve kullanım bilgisi burada görünecek.", color = Color(0xFFD5E4E8), fontSize = 15.sp)
+                Text(uiText(appLanguage, "Anlamı, kelime türü ve kullanım bilgisi burada görünecek."), color = Color(0xFFD5E4E8), fontSize = 15.sp)
             } else {
                 Text(dictionaryHeadword(selected), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    DarkPill("Kelime türü: ${selected.wordClass}")
+                    DarkPill("${uiText(appLanguage, "Kelime türü")}: ${selected.wordClass}")
                     selected.grammar?.let { DarkPill(it) }
                 }
                 if (selected.wordClass == "İsim") {
-                    DetailLine("Artikel", selected.article ?: "—")
-                    DetailLine("Çoğul", nounPluralDisplay(selected))
+                    DetailLine(uiText(appLanguage, "Artikel"), selected.article ?: "—")
+                    DetailLine(uiText(appLanguage, "Çoğul"), nounPluralDisplay(selected))
                     selected.accusativeNote?.let { DetailLine("Akkusativ", it) }
                 } else {
-                    MorphologyDetails(selected)
+                    MorphologyDetails(selected, appLanguage)
                 }
                 Spacer(Modifier.height(4.dp))
-                DetailLine("Anlam", selected.meaning)
+                DetailLine(uiText(appLanguage, "Anlam"), selected.meaning)
                 selected.contextUsage?.let {
                     Spacer(Modifier.height(7.dp))
                     HorizontalDivider(color = Color.White.copy(alpha = .16f))
                     Spacer(Modifier.height(4.dp))
-                    DetailLine("Bu cümlede", it)
+                    DetailLine(uiText(appLanguage, "Bu cümlede"), it)
                 }
                 if (detailed) selected.explanation?.let {
                     Spacer(Modifier.height(7.dp))
@@ -392,10 +447,10 @@ private fun MeaningPanel(selected: Lexeme?, isSaved: Boolean, detailed: Boolean,
     }
 }
 
-@Composable private fun MorphologyDetails(item: Lexeme) {
+@Composable private fun MorphologyDetails(item: Lexeme, appLanguage: String) {
     when (item.wordClass) {
-        "Fiil" -> { item.infinitive?.let { DetailLine("Mastar", it) }; item.thirdPerson?.let { DetailLine("3. tekil şahıs", it) }; item.preterite?.let { DetailLine("Präteritum", it) }; item.perfect?.let { DetailLine("Perfekt", it) } }
-        "Sıfat" -> { item.positive?.let { DetailLine("Yalın hâl", it) }; item.comparative?.let { DetailLine("Komparativ", it) }; item.superlative?.let { DetailLine("Superlativ", it) } }
+        "Fiil" -> { item.infinitive?.let { DetailLine(uiText(appLanguage, "Mastar"), it) }; item.thirdPerson?.let { DetailLine(uiText(appLanguage, "3. tekil şahıs"), it) }; item.preterite?.let { DetailLine("Präteritum", it) }; item.perfect?.let { DetailLine("Perfekt", it) } }
+        "Sıfat" -> { item.positive?.let { DetailLine(uiText(appLanguage, "Yalın hâl"), it) }; item.comparative?.let { DetailLine("Komparativ", it) }; item.superlative?.let { DetailLine("Superlativ", it) } }
     }
 }
 
@@ -414,11 +469,14 @@ private fun MeaningPanel(selected: Lexeme?, isSaved: Boolean, detailed: Boolean,
     }
 }
 
-@Composable private fun ReaderTabs(active: ReaderTab, onSelect: (ReaderTab) -> Unit) {
+@Composable private fun ReaderTabs(active: ReaderTab, appLanguage: String, onSelect: (ReaderTab) -> Unit) {
     SecondaryTabRow(selectedTabIndex = ReaderTab.entries.indexOf(active)) {
-        listOf(ReaderTab.STORY to "Hikâye", ReaderTab.QUIZ to "Sınav", ReaderTab.WORDS to "Kelimeler", ReaderTab.GRAMMAR to "Gramer").forEach { (tab, label) ->
-            Tab(selected = tab == active, onClick = { onSelect(tab) }, text = { Text(label) })
-        }
+        listOf(
+            ReaderTab.STORY to uiText(appLanguage, "Hikâye"),
+            ReaderTab.QUIZ to uiText(appLanguage, "Sınav"),
+            ReaderTab.WORDS to uiText(appLanguage, "Kelimeler"),
+            ReaderTab.GRAMMAR to uiText(appLanguage, "Gramer")
+        ).forEach { (tab, label) -> Tab(selected = tab == active, onClick = { onSelect(tab) }, text = { Text(label) }) }
     }
 }
 
@@ -430,11 +488,14 @@ private fun StoryScreen(
     selectedSentenceIndex: Int,
     textSize: Int,
     highlightEnabled: Boolean,
+    translationLanguage: String,
+    appLanguage: String,
     isCompleted: Boolean,
     onComplete: () -> Unit,
     onSelect: (Int, Lexeme) -> Unit
 ) {
     var showTranslations by remember(lesson.id) { mutableStateOf(false) }
+    val translations = remember(lesson.id, translationLanguage) { StoryTranslationCatalog.translationsFor(lesson, translationLanguage) }
     Column(Modifier.fillMaxSize()) {
         Surface(tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -450,7 +511,7 @@ private fun StoryScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = if (showTranslations) Dark else Turquoise, contentColor = Color.White),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                 ) {
-                    Text(if (showTranslations) "Çeviriyi Gizle" else "Çeviri", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(if (showTranslations) uiText(appLanguage, "Çeviriyi Gizle") else uiText(appLanguage, "Çeviri"), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -482,7 +543,7 @@ private fun StoryScreen(
                     }
                 }
                 if (showTranslations) {
-                    lesson.translations.getOrNull(sentenceIndex)?.let { translation ->
+                    translations.getOrNull(sentenceIndex)?.let { translation ->
                         Spacer(Modifier.height(6.dp))
                         Text(translation, fontSize = (textSize - 3).coerceAtLeast(14).sp, lineHeight = (textSize + 5).sp, color = Turquoise, modifier = Modifier.fillMaxWidth().padding(start = 2.dp))
                     }
@@ -496,15 +557,15 @@ private fun StoryScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("✓", color = Turquoise, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.width(10.dp))
-                            Column { Text("Hikâye tamamlandı", fontWeight = FontWeight.Bold); Text("Bu hikâye tamamlananlar listesinde.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp) }
+                            Column { Text(uiText(appLanguage, "Hikâye tamamlandı"), fontWeight = FontWeight.Bold) }
                         }
                         Spacer(Modifier.height(10.dp))
-                        OutlinedButton(onClick = onComplete, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(15.dp)) { Text("Tamamlandı işaretini kaldır") }
+                        OutlinedButton(onClick = onComplete, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(15.dp)) { Text(uiText(appLanguage, "Tamamlandı işaretini kaldır")) }
                     }
                 }
             } else {
                 Button(onClick = onComplete, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(17.dp)) {
-                    Text("Hikâyeyi tamamlandı olarak işaretle", fontWeight = FontWeight.SemiBold)
+                    Text(uiText(appLanguage, "Hikâyeyi tamamlandı olarak işaretle"), fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -825,61 +886,77 @@ private fun StatsScreen(saved: List<Lexeme>, completedIds: Set<String>, stats: L
 }
 
 @Composable
-private fun SettingsScreen(prefs: UserPreferences, onSave: (UserPreferences) -> Unit, onFullReset: () -> Unit) {
+private fun SettingsScreen(
+    prefs: UserPreferences,
+    savedPrefs: UserPreferences,
+    onChange: (UserPreferences) -> Unit,
+    onSave: () -> Unit,
+    onFullReset: () -> Unit
+) {
     var confirmReset by remember { mutableStateOf(false) }
+    var savedNotice by remember { mutableStateOf(false) }
+    val dirty = prefs != savedPrefs
+    val lang = savedPrefs.appLanguage
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-            SettingCard("Dil") {
-                Text("Uygulama dili", fontWeight = FontWeight.Bold)
-                Text("Menüler ve uygulama arayüzü için kullanılacak dil.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+            SettingCard(uiText(lang, "Dil")) {
+                Text(uiText(lang, "Uygulama dili"), fontWeight = FontWeight.Bold)
+                Text(uiText(lang, "Menüler ve uygulama arayüzü için kullanılacak dil."), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                 Spacer(Modifier.height(8.dp))
-                LanguageDropdown(prefs.appLanguage) { onSave(prefs.copy(appLanguage = it)) }
+                LanguageDropdown(prefs.appLanguage, lang) { onChange(prefs.copy(appLanguage = it)); savedNotice = false }
                 Spacer(Modifier.height(16.dp))
                 HorizontalDivider()
                 Spacer(Modifier.height(16.dp))
-                Text("Hikâye çeviri dili", fontWeight = FontWeight.Bold)
-                Text("Hikâyedeki Çeviri butonuna bastığında gösterilecek dil.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                Text(uiText(lang, "Hikâye çeviri dili"), fontWeight = FontWeight.Bold)
+                Text(uiText(lang, "Hikâyedeki Çeviri butonuna bastığında gösterilecek dil."), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                 Spacer(Modifier.height(8.dp))
-                LanguageDropdown(prefs.translationLanguage) { onSave(prefs.copy(translationLanguage = it)) }
+                LanguageDropdown(prefs.translationLanguage, lang) { onChange(prefs.copy(translationLanguage = it)); savedNotice = false }
             }
-            SettingCard("Görünüm") {
-                Text("Tema", fontWeight = FontWeight.Bold)
+            SettingCard(uiText(lang, "Görünüm")) {
+                Text(uiText(lang, "Tema"), fontWeight = FontWeight.Bold)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("system" to "Sistem", "light" to "Açık", "dark" to "Karanlık").forEach { (id, label) -> FilterChip(selected = prefs.themeMode == id, onClick = { onSave(prefs.copy(themeMode = id)) }, label = { Text(label) }) }
+                    listOf("system" to "Sistem", "light" to "Açık", "dark" to "Karanlık").forEach { (id, label) -> FilterChip(selected = prefs.themeMode == id, onClick = { onChange(prefs.copy(themeMode = id)); savedNotice = false }, label = { Text(uiText(lang, label)) }) }
                 }
                 Spacer(Modifier.height(12.dp))
-                Text("Arayüz yazı boyutu", fontWeight = FontWeight.Bold)
+                Text(uiText(lang, "Arayüz yazı boyutu"), fontWeight = FontWeight.Bold)
                 Text("${(prefs.uiScale * 100).toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Slider(value = prefs.uiScale, onValueChange = { onSave(prefs.copy(uiScale = it)) }, valueRange = .85f..1.25f)
-                Text("Hikâye yazı boyutu: ${prefs.storyTextSize}", fontWeight = FontWeight.Bold)
-                Slider(value = prefs.storyTextSize.toFloat(), onValueChange = { onSave(prefs.copy(storyTextSize = it.toInt())) }, valueRange = 18f..30f, steps = 5)
+                Slider(value = prefs.uiScale, onValueChange = { onChange(prefs.copy(uiScale = it)); savedNotice = false }, valueRange = .85f..1.25f)
+                Text("${uiText(lang, "Hikâye yazı boyutu")}: ${prefs.storyTextSize}", fontWeight = FontWeight.Bold)
+                Slider(value = prefs.storyTextSize.toFloat(), onValueChange = { onChange(prefs.copy(storyTextSize = it.toInt())); savedNotice = false }, valueRange = 18f..30f, steps = 5)
             }
-            SettingCard("Okuma") {
-                SwitchSetting("Seçilen kelimeyi vurgula", prefs.highlightEnabled) { onSave(prefs.copy(highlightEnabled = it)) }
-                SwitchSetting("Ayrıntılı açıklamaları göster", prefs.detailedExplanations) { onSave(prefs.copy(detailedExplanations = it)) }
+            SettingCard(uiText(lang, "Okuma")) {
+                SwitchSetting(uiText(lang, "Seçilen kelimeyi vurgula"), prefs.highlightEnabled) { onChange(prefs.copy(highlightEnabled = it)); savedNotice = false }
+                SwitchSetting(uiText(lang, "Ayrıntılı açıklamaları göster"), prefs.detailedExplanations) { onChange(prefs.copy(detailedExplanations = it)); savedNotice = false }
             }
-            SettingCard("Sınav") {
-                Text("Hikâye sınavında soru sayısı: ${prefs.quizQuestionCount}", fontWeight = FontWeight.Bold)
-                Slider(value = prefs.quizQuestionCount.toFloat(), onValueChange = { onSave(prefs.copy(quizQuestionCount = it.toInt())) }, valueRange = 5f..20f, steps = 14)
+            SettingCard(uiText(lang, "Sınav")) {
+                Text("${uiText(lang, "Hikâye sınavında soru sayısı")}: ${prefs.quizQuestionCount}", fontWeight = FontWeight.Bold)
+                Slider(value = prefs.quizQuestionCount.toFloat(), onValueChange = { onChange(prefs.copy(quizQuestionCount = it.toInt())); savedNotice = false }, valueRange = 5f..20f, steps = 14)
             }
+            Button(
+                onClick = { onSave(); savedNotice = true },
+                enabled = dirty,
+                modifier = Modifier.fillMaxWidth().height(54.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) { Text(uiText(lang, "Değişiklikleri kaydet"), fontWeight = FontWeight.SemiBold) }
+            if (savedNotice && !dirty) Text("✓ ${uiText(lang, "Değişiklikler kaydedildi")}", color = Success, fontWeight = FontWeight.SemiBold)
             OutlinedButton(onClick = { confirmReset = true }, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp)) {
-                Text("Uygulamayı tamamen sıfırla")
+                Text(uiText(lang, "Uygulamayı tamamen sıfırla"))
             }
         }
         if (confirmReset) {
             AlertDialog(
                 onDismissRequest = { confirmReset = false },
-                title = { Text("Uygulama sıfırlansın mı?") },
+                title = { Text(uiText(lang, "Uygulama sıfırlansın mı?")) },
                 text = { Text("Kaydedilen kelimeler, tamamlanan hikâyeler, çalışma istatistikleri, kelime öğrenme geçmişi, profil ve ayarlar silinecek. Bu işlem geri alınamaz.") },
-                confirmButton = { TextButton(onClick = { onFullReset(); confirmReset = false }) { Text("Tamamen sıfırla") } },
-                dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Vazgeç") } }
+                confirmButton = { TextButton(onClick = { onFullReset(); confirmReset = false }) { Text(uiText(lang, "Tamamen sıfırla")) } },
+                dismissButton = { TextButton(onClick = { confirmReset = false }) { Text(uiText(lang, "Vazgeç")) } }
             )
         }
     }
 }
 
 @Composable
-private fun LanguageDropdown(selected: String, onSelected: (String) -> Unit) {
+private fun LanguageDropdown(selected: String, appLanguage: String, onSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val languages = listOf(
         "tr" to "Türkçe",
@@ -890,18 +967,14 @@ private fun LanguageDropdown(selected: String, onSelected: (String) -> Unit) {
     )
     val selectedLabel = languages.firstOrNull { it.first == selected }?.second ?: "Türkçe"
     Box(Modifier.fillMaxWidth()) {
-        OutlinedButton(
-            onClick = { expanded = true },
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(14.dp)
-        ) {
-            Text(selectedLabel, Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Start)
+        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(14.dp)) {
+            Text(uiText(appLanguage, selectedLabel), Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Start)
             Text("▾")
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.fillMaxWidth(.9f)) {
             languages.forEach { (code, label) ->
                 DropdownMenuItem(
-                    text = { Text(label) },
+                    text = { Text(uiText(appLanguage, label)) },
                     trailingIcon = { if (code == selected) Text("✓", color = Turquoise, fontWeight = FontWeight.Bold) },
                     onClick = { onSelected(code); expanded = false }
                 )
@@ -974,7 +1047,7 @@ private fun storyGrammarRules(lesson: ReaderLesson): List<StoryGrammarRule> {
     val text = lesson.sentences.joinToString(" ") { sentence -> sentence.joinToString(" ") { it.text } }.lowercase()
     val rules = mutableListOf<StoryGrammarRule>()
 
-    if (Regex("\b(weil|wenn|dass|während|obwohl|bevor)\b").containsMatchIn(text)) {
+    if (Regex("\\b(weil|wenn|dass|während|obwohl|bevor)\\b").containsMatchIn(text)) {
         rules += StoryGrammarRule(
             "Yan cümlede fiilin yeri",
             "weil, wenn, dass, während gibi bağlaçlarla kurulan yan cümlede çekimli fiil genellikle cümlenin sonuna gider.",
@@ -982,7 +1055,7 @@ private fun storyGrammarRules(lesson: ReaderLesson): List<StoryGrammarRule> {
         )
     }
 
-    if (Regex("\b(möchte|möchten|kann|können|muss|müssen|soll|sollen|will|wollen|darf|dürfen)\b").containsMatchIn(text)) {
+    if (Regex("\\b(möchte|möchten|kann|können|muss|müssen|soll|sollen|will|wollen|darf|dürfen)\\b").containsMatchIn(text)) {
         rules += StoryGrammarRule(
             "Modal fiil + mastar",
             "Modal fiil çekimlenir; asıl fiil mastar hâlinde çoğunlukla cümlenin sonunda bulunur.",
@@ -991,7 +1064,7 @@ private fun storyGrammarRules(lesson: ReaderLesson): List<StoryGrammarRule> {
     }
 
     val hasSeparable = lesson.sentences.flatten().any { it.lexeme.contextUsage?.contains("Ayrılabilir", ignoreCase = true) == true }
-    if (hasSeparable || Regex("\b(auf|zu|ein|aus|ab|weg|zurück)\b").containsMatchIn(text)) {
+    if (hasSeparable || Regex("\\b(auf|zu|ein|aus|ab|weg|zurück)\\b").containsMatchIn(text)) {
         rules += StoryGrammarRule(
             "Ayrılabilir fiiller",
             "Ana cümlede ayrılabilir fiilin çekimli kısmı normal fiil yerinde durur; ayrılan ön ek cümlenin ilerisine gider.",
@@ -999,7 +1072,7 @@ private fun storyGrammarRules(lesson: ReaderLesson): List<StoryGrammarRule> {
         )
     }
 
-    if (Regex("\b(mit|nach|von|bei|über|für|an|auf|in)\b").containsMatchIn(text)) {
+    if (Regex("\\b(mit|nach|von|bei|über|für|an|auf|in)\\b").containsMatchIn(text)) {
         rules += StoryGrammarRule(
             "Edatlar ve hâller",
             "Bazı edatlar belirli bir hâl ister. Örneğin mit, nach, von ve bei çoğunlukla Dativ; für ise Akkusativ alır. an, auf, in ve über gibi Wechselpräpositionen kullanıma göre hâl değiştirir.",
