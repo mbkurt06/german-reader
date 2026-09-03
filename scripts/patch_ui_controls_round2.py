@@ -75,7 +75,6 @@ if old_theme not in text:
     raise SystemExit('reader theme block not found')
 text = text.replace(old_theme, new_theme, 1)
 
-# Live preview of settings theme within settings page; cancel naturally returns to saved outer theme.
 old_settings_case = '''                    AppPage.SETTINGS -> SettingsScreen(
                         prefs = settingsDraft,
                         savedPrefs = preferences,
@@ -110,7 +109,6 @@ if old_settings_case not in text:
     raise SystemExit('settings case not found')
 text = text.replace(old_settings_case, new_settings_case, 1)
 
-# Replace settings sliders with +/- controls styled like reader brightness.
 old_ui = '''                Text(uiText(lang, "Arayüz yazı boyutu"), fontWeight = FontWeight.Bold)
                 Text("${(prefs.uiScale * 100).toInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Slider(value = prefs.uiScale, onValueChange = { onChange(prefs.copy(uiScale = it)); savedNotice = false }, valueRange = .85f..1.25f)
@@ -148,7 +146,6 @@ if old_quiz not in text:
     raise SystemExit('quiz slider not found')
 text = text.replace(old_quiz, new_quiz, 1)
 
-# Add shared compact step control before SettingCard.
 marker = '@Composable private fun SettingCard(title: String, content: @Composable ColumnScope.() -> Unit) {'
 helper = '''@Composable
 private fun StepValueControl(
@@ -162,23 +159,17 @@ private fun StepValueControl(
 ) {
     Spacer(Modifier.height(8.dp))
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            shape = CircleShape,
-            modifier = Modifier.size(54.dp).clickable(enabled = canDecrease, onClick = onDecrease)
-        ) { Box(contentAlignment = Alignment.Center) { Text(decreaseLabel, fontSize = 22.sp, fontWeight = FontWeight.SemiBold) } }
+        Surface(color = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface, shape = CircleShape, modifier = Modifier.size(54.dp).clickable(enabled = canDecrease, onClick = onDecrease)) {
+            Box(contentAlignment = Alignment.Center) { Text(decreaseLabel, fontSize = 22.sp, fontWeight = FontWeight.SemiBold) }
+        }
         Spacer(Modifier.weight(1f))
         Surface(color = Turquoise.copy(alpha = .13f), shape = RoundedCornerShape(11.dp)) {
             Text(valueText, Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = Turquoise, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.weight(1f))
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            shape = CircleShape,
-            modifier = Modifier.size(54.dp).clickable(enabled = canIncrease, onClick = onIncrease)
-        ) { Box(contentAlignment = Alignment.Center) { Text(increaseLabel, fontSize = 24.sp, fontWeight = FontWeight.SemiBold) } }
+        Surface(color = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface, shape = CircleShape, modifier = Modifier.size(54.dp).clickable(enabled = canIncrease, onClick = onIncrease)) {
+            Box(contentAlignment = Alignment.Center) { Text(increaseLabel, fontSize = 24.sp, fontWeight = FontWeight.SemiBold) }
+        }
     }
 }
 
@@ -186,44 +177,30 @@ private fun StepValueControl(
 if marker not in text:
     raise SystemExit('SettingCard marker missing')
 text = text.replace(marker, helper + marker, 1)
-
 main_path.write_text(text)
 
-# Profile daily goal gets the same +/- visual language.
 profile_path = Path('app/src/main/java/de/bascurt/almancaokuyucu/ProfileSetupActivity.kt')
 p = profile_path.read_text()
 old_goal = '''        Text("Günlük hedef: ${goal.toInt()} soru", fontWeight = FontWeight.Bold)
-        Slider(
-            value = goal,
-            onValueChange = { goal = it },
-            valueRange = 5f..50f,
-            steps = 8
-        )
+        Slider(value = goal, onValueChange = { goal = it }, valueRange = 5f..50f, steps = 8)
 '''
 new_goal = '''        Text("Günlük hedef", fontWeight = FontWeight.Bold)
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                shape = CircleShape,
-                modifier = Modifier.size(54.dp).clickable(enabled = goal > 5f) { goal = (goal - 5f).coerceAtLeast(5f) }
-            ) { Box(contentAlignment = Alignment.Center) { Text("−", fontSize = 24.sp, fontWeight = FontWeight.SemiBold) } }
+            Surface(color = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface, shape = CircleShape, modifier = Modifier.size(54.dp).clickable(enabled = goal > 5f) { goal = (goal - 5f).coerceAtLeast(5f) }) {
+                Box(contentAlignment = Alignment.Center) { Text("−", fontSize = 24.sp, fontWeight = FontWeight.SemiBold) }
+            }
             Spacer(Modifier.weight(1f))
             Surface(color = ProfileTurquoise.copy(alpha = .13f), shape = RoundedCornerShape(11.dp)) {
                 Text("${goal.toInt()} soru", Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = ProfileTurquoise, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.weight(1f))
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                shape = CircleShape,
-                modifier = Modifier.size(54.dp).clickable(enabled = goal < 50f) { goal = (goal + 5f).coerceAtMost(50f) }
-            ) { Box(contentAlignment = Alignment.Center) { Text("+", fontSize = 24.sp, fontWeight = FontWeight.SemiBold) } }
+            Surface(color = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface, shape = CircleShape, modifier = Modifier.size(54.dp).clickable(enabled = goal < 50f) { goal = (goal + 5f).coerceAtMost(50f) }) {
+                Box(contentAlignment = Alignment.Center) { Text("+", fontSize = 24.sp, fontWeight = FontWeight.SemiBold) }
+            }
         }
 '''
 if old_goal not in p:
     raise SystemExit('profile goal slider not found')
 p = p.replace(old_goal, new_goal, 1)
 profile_path.write_text(p)
-
 print('UI controls round 2 patch applied')
