@@ -1,107 +1,94 @@
 package de.bascurt.almancaokuyucu.data
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LessonVocabularyAuditTest {
 
     @Test
-    fun everyVisibleTokenHasARealMeaning() {
-        val missing = SampleLessons.all.flatMap { lesson ->
-            lesson.sentences.flatMapIndexed { sentenceIndex, sentence ->
-                sentence.mapIndexedNotNull { tokenIndex, token ->
-                    val meaning = token.lexeme.meaning.trim()
-                    val invalid = meaning.isBlank() ||
-                        meaning.contains("tamamlanmalı", ignoreCase = true) ||
-                        meaning.contains("eksik", ignoreCase = true)
-                    if (invalid) "${lesson.title} [${sentenceIndex + 1}:${tokenIndex + 1}] ${token.text} -> $meaning" else null
-                }
-            }
-        }
+    fun focusedReaderUsesExactlyFiveLessons() {
+        assertEquals(5, SampleLessons.all.size)
+        assertEquals(
+            listOf(
+                "a2-neuer-anfang",
+                "a2-kueche",
+                "a2-arzt",
+                "a2-baeckerei",
+                "a2-supermarkt"
+            ),
+            SampleLessons.all.map { it.id }
+        )
+    }
 
-        val missingWords = SampleLessons.all
-            .flatMap { it.sentences }
-            .flatten()
-            .filter { token ->
+    @Test
+    fun everySentenceHasTranslationAndRealTokenMeanings() {
+        SampleLessons.all.forEach { lesson ->
+            assertEquals(
+                "${lesson.title}: cümle ve çeviri sayısı aynı olmalı",
+                lesson.sentences.size,
+                lesson.translations.size
+            )
+            assertTrue("${lesson.title}: hikâye yeterince uzun olmalı", lesson.sentences.size >= 12)
+
+            lesson.sentences.flatten().forEach { token ->
                 val meaning = token.lexeme.meaning.trim()
-                meaning.isBlank() ||
-                    meaning.contains("tamamlanmalı", ignoreCase = true) ||
-                    meaning.contains("eksik", ignoreCase = true)
+                assertTrue("${lesson.title}: '${token.text}' için anlam boş", meaning.isNotBlank())
+                assertTrue(
+                    "${lesson.title}: '${token.text}' için eksik anlam kaydı: $meaning",
+                    !meaning.contains("tamamlanmalı", ignoreCase = true) &&
+                        !meaning.contains("eksik", ignoreCase = true)
+                )
             }
-            .map { token -> cleanForAudit(token.text) }
-            .filter { it.isNotBlank() }
-            .distinct()
-            .sorted()
-
-        if (missing.isNotEmpty()) {
-            println("=== EKSİK HİKÂYE SÖZLÜĞÜ: TEKRARSIZ KELİMELER ===")
-            println(missingWords.joinToString(", "))
-            println("=== TEKRARSIZ EKSİK: ${missingWords.size} ===")
-            println("=== TÜM KONUMLAR ===")
-            missing.forEach(::println)
-            println("=== TOPLAM EKSİK KULLANIM: ${missing.size} ===")
         }
-        assertTrue("Eksik Türkçe anlamlar:\n${missing.joinToString("\n")}", missing.isEmpty())
     }
 
     @Test
-    fun aufwaermenDoesNotCaptureAufDemFahrrad() {
-        val sentence = auditSentence("Er wärmt sich zehn Minuten auf dem Fahrrad auf.")
-        val warmt = sentence.first { it.text.startsWith("wärmt") }
-        val sich = sentence.first { it.text.trim('.', ',') == "sich" }
-        val aufs = sentence.filter { it.text.trim('.', ',') == "auf" }
+    fun nounPhraseSelectionKeepsIndividualWordsButLinksTheGroup() {
+        val sentence = SampleLessons.all.first().sentences[6] // eine kurze Pause
+        val eine = sentence.first { clean(it.text) == "eine" }
+        val kurze = sentence.first { clean(it.text) == "kurze" }
+        val pause = sentence.first { clean(it.text) == "pause" }
 
-        assertEquals(2, aufs.size)
-        assertEquals(warmt.lexeme.id, sich.lexeme.id)
-        assertNotEquals(warmt.lexeme.id, aufs.first().lexeme.id)
-        assertEquals(warmt.lexeme.id, aufs.last().lexeme.id)
-        assertEquals("sich aufwärmen", warmt.lexeme.base)
+        assertTrue(eine.lexeme.id != kurze.lexeme.id)
+        assertTrue(kurze.lexeme.id != pause.lexeme.id)
+        assertTrue(sharedContextLink(eine.lexeme.contextLinkIds, kurze.lexeme.contextLinkIds))
+        assertTrue(sharedContextLink(kurze.lexeme.contextLinkIds, pause.lexeme.contextLinkIds))
     }
 
     @Test
-    fun anmeldenDoesNotCaptureAnDerRezeption() {
-        val sentence = auditSentence("Er meldet sich an der Rezeption an.")
-        val verb = sentence.first { it.text.startsWith("meldet") }
-        val ans = sentence.filter { it.text.trim('.', ',') == "an" }
+    fun fragenNachLinksVerbStronglyAndObjectWeakly() {
+        val sentence = SampleLessons.all.first().sentences[4]
+        val fragt = sentence.first { clean(it.text) == "fragt" }
+        val nach = sentence.first { clean(it.text) == "nach" }
+        val dem = sentence.first { clean(it.text) == "dem" }
+        val fruehstueck = sentence.first { clean(it.text) == "frühstück" }
 
-        assertEquals(2, ans.size)
-        assertNotEquals(verb.lexeme.id, ans.first().lexeme.id)
-        assertEquals(verb.lexeme.id, ans.last().lexeme.id)
+        assertNotNull(fragt.lexeme.strongLinkId)
+        assertEquals(fragt.lexeme.strongLinkId, nach.lexeme.strongLinkId)
+        assertTrue(sharedContextLink(nach.lexeme.contextLinkIds, fruehstueck.lexeme.contextLinkIds))
+        assertTrue(sharedContextLink(dem.lexeme.contextLinkIds, fruehstueck.lexeme.contextLinkIds))
     }
 
     @Test
-    fun normalAufAfterStellenStaysAPreposition() {
-        val sentence = auditSentence("Er stellt den Topf auf den Herd.")
-        val verb = sentence.first { it.text.startsWith("stellt") }
-        val auf = sentence.first { it.text == "auf" }
+    fun sprechenMitUeberIsOneStrongGroupAndObjectRemainsWeakContext() {
+        val sentence = SampleLessons.all.first().sentences[10]
+        val spricht = sentence.first { clean(it.text) == "spricht" }
+        val mit = sentence.first { clean(it.text) == "mit" }
+        val ueber = sentence.first { clean(it.text) == "über" }
+        val arbeitstag = sentence.first { clean(it.text) == "arbeitstag" }
 
-        assertNotEquals(verb.lexeme.id, auf.lexeme.id)
-        assertEquals("Edat", auf.lexeme.wordClass)
+        assertNotNull(spricht.lexeme.strongLinkId)
+        assertEquals(spricht.lexeme.strongLinkId, mit.lexeme.strongLinkId)
+        assertEquals(spricht.lexeme.strongLinkId, ueber.lexeme.strongLinkId)
+        assertTrue(sharedContextLink(ueber.lexeme.contextLinkIds, arbeitstag.lexeme.contextLinkIds))
     }
 
-    @Test
-    fun separableParticleBeforeUndStaysInsideItsOwnClause() {
-        val sentence = auditSentence("Er macht das Licht an und sie schaut die Anzeige an.")
-        val macht = sentence.first { it.text == "macht" }
-        val ans = sentence.filter { it.text.trim('.', ',') == "an" }
+    private fun sharedContextLink(first: List<String>, second: List<String>): Boolean =
+        first.any { it in second }
 
-        assertEquals(2, ans.size)
-        assertEquals("anmachen", macht.lexeme.base)
-        assertEquals(macht.lexeme.id, ans.first().lexeme.id)
-        assertNotEquals(macht.lexeme.id, ans.last().lexeme.id)
-    }
-
-    private fun auditSentence(text: String) = ExtendedLessonFactory.lesson(
-        id = "audit-regression",
-        title = "Audit",
-        level = "A2",
-        summary = "test",
-        texts = listOf(text)
-    ).sentences.first()
-
-    private fun cleanForAudit(text: String): String = text
+    private fun clean(text: String): String = text
         .trim('"', '„', '“', '.', ',', ':', ';', '!', '?', '(', ')')
         .lowercase()
 }
