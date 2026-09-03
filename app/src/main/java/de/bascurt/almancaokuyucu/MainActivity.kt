@@ -1121,7 +1121,7 @@ private fun storyGrammarRules(lesson: ReaderLesson): List<StoryGrammarRule> {
     val text = lesson.sentences.joinToString(" ") { sentence -> sentence.joinToString(" ") { it.text } }.lowercase()
     val rules = mutableListOf<StoryGrammarRule>()
 
-    if (Regex("\b(weil|wenn|dass|während|obwohl|bevor)\b").containsMatchIn(text)) {
+    if (Regex("\\b(weil|wenn|dass|während|obwohl|bevor)\\b").containsMatchIn(text)) {
         rules += StoryGrammarRule(
             "Yan cümlede fiilin yeri",
             "weil, wenn, dass, während gibi bağlaçlarla kurulan yan cümlede çekimli fiil genellikle cümlenin sonuna gider.",
@@ -1129,7 +1129,7 @@ private fun storyGrammarRules(lesson: ReaderLesson): List<StoryGrammarRule> {
         )
     }
 
-    if (Regex("\b(möchte|möchten|kann|können|muss|müssen|soll|sollen|will|wollen|darf|dürfen)\b").containsMatchIn(text)) {
+    if (Regex("\\b(möchte|möchten|kann|können|muss|müssen|soll|sollen|will|wollen|darf|dürfen)\\b").containsMatchIn(text)) {
         rules += StoryGrammarRule(
             "Modal fiil + mastar",
             "Modal fiil çekimlenir; asıl fiil mastar hâlinde çoğunlukla cümlenin sonunda bulunur.",
@@ -1138,7 +1138,7 @@ private fun storyGrammarRules(lesson: ReaderLesson): List<StoryGrammarRule> {
     }
 
     val hasSeparable = lesson.sentences.flatten().any { it.lexeme.contextUsage?.contains("Ayrılabilir", ignoreCase = true) == true }
-    if (hasSeparable || Regex("\b(auf|zu|ein|aus|ab|weg|zurück)\b").containsMatchIn(text)) {
+    if (hasSeparable || Regex("\\b(auf|zu|ein|aus|ab|weg|zurück)\\b").containsMatchIn(text)) {
         rules += StoryGrammarRule(
             "Ayrılabilir fiiller",
             "Ana cümlede ayrılabilir fiilin çekimli kısmı normal fiil yerinde durur; ayrılan ön ek cümlenin ilerisine gider.",
@@ -1146,7 +1146,7 @@ private fun storyGrammarRules(lesson: ReaderLesson): List<StoryGrammarRule> {
         )
     }
 
-    if (Regex("\b(mit|nach|von|bei|über|für|an|auf|in)\b").containsMatchIn(text)) {
+    if (Regex("\\b(mit|nach|von|bei|über|für|an|auf|in)\\b").containsMatchIn(text)) {
         rules += StoryGrammarRule(
             "Edatlar ve hâller",
             "Bazı edatlar belirli bir hâl ister. Örneğin mit, nach, von ve bei çoğunlukla Dativ; für ise Akkusativ alır. an, auf, in ve über gibi Wechselpräpositionen kullanıma göre hâl değiştirir.",
@@ -1202,7 +1202,7 @@ private fun buildFillBlankCases(items: List<Lexeme>, lessons: List<ReaderLesson>
     }.distinctBy { it.lexeme.id }
 }
 
-private fun normalizeAnswer(text: String): String = text.lowercase().replace("…", " ").replace("...", " ").replace(Regex("[.,:;!?]"), "").replace(Regex("\s+"), " ").trim()
+private fun normalizeAnswer(text: String): String = text.lowercase().replace("…", " ").replace("...", " ").replace(Regex("[.,:;!?]"), "").replace(Regex("""\s+"""), " ").trim()
 
 private fun dictionaryHeadword(item: Lexeme): String {
     if (item.wordClass != "İsim") return item.base
