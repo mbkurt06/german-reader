@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.SliderColors
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -26,17 +28,27 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 
+/**
+ * Daha sade, okuma odaklı slider. Material3'ün kalın track/tick görünümü yerine
+ * ince bir çizgi ve küçük yuvarlak thumb kullanır. `colors` parametresi mevcut
+ * çağrılarla API uyumluluğunu korumak için alınır; okuma ekranının turkuaz
+ * aksanı bilinçli olarak sabittir.
+ */
 @Composable
 fun Slider(
     value: Float,
     onValueChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
-    steps: Int = 0
+    steps: Int = 0,
+    colors: SliderColors = SliderDefaults.colors()
 ) {
+    @Suppress("UNUSED_VARIABLE")
+    val apiCompatibilityColors = colors
     var trackWidthPx by remember { mutableFloatStateOf(1f) }
     val density = LocalDensity.current
-    val thumbSize = 18.dp
+    val thumbSize = 16.dp
+    val trackHeight = 4.dp
     val range = (valueRange.endInclusive - valueRange.start).takeIf { it > 0f } ?: 1f
     val fraction = ((value - valueRange.start) / range).coerceIn(0f, 1f)
 
@@ -57,7 +69,7 @@ fun Slider(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(34.dp)
+            .height(40.dp)
             .pointerInput(valueRange, steps) {
                 detectTapGestures { offset -> onValueChange(valueForX(offset.x)) }
             }
@@ -72,15 +84,15 @@ fun Slider(
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(5.dp)
+                .height(trackHeight)
                 .onSizeChanged { trackWidthPx = it.width.coerceAtLeast(1).toFloat() }
-                .background(Color(0xFF91A5AA).copy(alpha = .30f), RoundedCornerShape(99.dp))
+                .background(Color(0xFF82979D).copy(alpha = .28f), RoundedCornerShape(99.dp))
         )
         if (fraction > 0f) {
             Box(
                 Modifier
                     .fillMaxWidth(fraction)
-                    .height(5.dp)
+                    .height(trackHeight)
                     .background(ReaderAccent, RoundedCornerShape(99.dp))
             )
         }
@@ -88,11 +100,13 @@ fun Slider(
             Modifier
                 .offset {
                     val thumbPx = with(density) { thumbSize.toPx() }
-                    IntOffset(((trackWidthPx * fraction) - thumbPx / 2f).roundToInt(), 0)
+                    val rawX = trackWidthPx * fraction - thumbPx / 2f
+                    val maxX = (trackWidthPx - thumbPx).coerceAtLeast(0f)
+                    IntOffset(rawX.coerceIn(0f, maxX).roundToInt(), 0)
                 }
                 .width(thumbSize)
                 .height(thumbSize)
-                .shadow(3.dp, CircleShape)
+                .shadow(2.dp, CircleShape)
                 .background(ReaderAccent, CircleShape)
         )
     }
