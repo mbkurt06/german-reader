@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -438,7 +439,7 @@ private fun ReaderScreen(
                     selectedSentenceIndex = selectedSentenceIndex,
                     textSize = preferences.storyTextSize,
                     brightness = preferences.readerBrightness,
-                    nightMode = preferences.readerNightMode,
+                    readerThemeMode = preferences.readerThemeMode,
                     highlightEnabled = preferences.highlightEnabled,
                     translationLanguage = preferences.translationLanguage,
                     appLanguage = preferences.appLanguage,
@@ -446,7 +447,7 @@ private fun ReaderScreen(
                     onComplete = onComplete,
                     onTextSizeChange = { onPreferences(preferences.copy(storyTextSize = it)) },
                     onBrightnessChange = { onPreferences(preferences.copy(readerBrightness = it)) },
-                    onNightModeChange = { onPreferences(preferences.copy(readerNightMode = it)) }
+                    onReaderThemeModeChange = { onPreferences(preferences.copy(readerThemeMode = it, readerNightMode = it == "dark")) }
                 ) { sentenceIndex, lexeme ->
                     selectedSentenceIndex = sentenceIndex
                     selected = lexeme
@@ -596,7 +597,7 @@ private fun StoryScreen(
     selectedSentenceIndex: Int,
     textSize: Int,
     brightness: Float,
-    nightMode: Boolean,
+    readerThemeMode: String,
     highlightEnabled: Boolean,
     translationLanguage: String,
     appLanguage: String,
@@ -604,13 +605,19 @@ private fun StoryScreen(
     onComplete: () -> Unit,
     onTextSizeChange: (Int) -> Unit,
     onBrightnessChange: (Float) -> Unit,
-    onNightModeChange: (Boolean) -> Unit,
+    onReaderThemeModeChange: (String) -> Unit,
     onSelect: (Int, Lexeme) -> Unit
 ) {
     var showTranslations by remember(lesson.id) { mutableStateOf(false) }
     var showDisplayControls by remember(lesson.id) { mutableStateOf(false) }
     val translations = remember(lesson.id, translationLanguage) { StoryTranslationCatalog.translationsFor(lesson, translationLanguage) }
     val activity = LocalContext.current as? Activity
+    val appDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val nightMode = when (readerThemeMode) {
+        "dark" -> true
+        "light" -> false
+        else -> appDark
+    }
     val readerBackground = if (nightMode) Color(0xFF0B1014) else MaterialTheme.colorScheme.background
     val readerTextColor = if (nightMode) Color(0xFFE9EEF0) else MaterialTheme.colorScheme.onBackground
 
@@ -865,32 +872,19 @@ private fun StoryScreen(
                     shape = RoundedCornerShape(22.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            color = Color.White.copy(alpha = .08f),
-                            contentColor = Color.White,
-                            shape = CircleShape,
-                            modifier = Modifier.size(54.dp).clickable { onNightModeChange(!nightMode) }
-                        ) { Box(contentAlignment = Alignment.Center) { Text("☾", fontSize = 30.sp) } }
-                        Spacer(Modifier.width(14.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text("Gece modu", fontWeight = FontWeight.SemiBold)
-                            Text("Okuma alanını koyu renge geçirir.", fontSize = 12.sp, color = Color.White.copy(alpha = .65f))
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
+                        Text("Okuma teması", fontWeight = FontWeight.SemiBold)
+                        Text("Sadece hikâye okuma ekranını etkiler; uygulamanın genel temasını değiştirmez.", fontSize = 12.sp, color = Color.White.copy(alpha = .65f))
+                        Spacer(Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                            listOf("app" to "Uygulama", "light" to "Açık", "dark" to "Koyu").forEach { (id, label) ->
+                                FilterChip(
+                                    selected = readerThemeMode == id,
+                                    onClick = { onReaderThemeModeChange(id) },
+                                    label = { Text(label) }
+                                )
+                            }
                         }
-                        Switch(
-                            checked = nightMode,
-                            onCheckedChange = onNightModeChange,
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = Turquoise,
-                                uncheckedThumbColor = Color.White,
-                                uncheckedTrackColor = Color.White.copy(alpha = .18f),
-                                uncheckedBorderColor = Color.White.copy(alpha = .38f)
-                            )
-                        )
                     }
                 }
             }
@@ -1277,9 +1271,11 @@ private fun SettingsScreen(
                 LanguageDropdown(prefs.translationLanguage, lang) { onChange(prefs.copy(translationLanguage = it)); savedNotice = false }
             }
             SettingCard(uiText(lang, "Görünüm")) {
-                Text(uiText(lang, "Tema"), fontWeight = FontWeight.Bold)
+                Text(uiText(lang, "Uygulama teması"), fontWeight = FontWeight.Bold)
+                Text("Sistem seçilirse telefonun açık/koyu görünüm ayarı otomatik izlenir.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("system" to "Sistem", "light" to "Açık", "dark" to "Karanlık").forEach { (id, label) -> FilterChip(selected = prefs.themeMode == id, onClick = { onChange(prefs.copy(themeMode = id)); savedNotice = false }, label = { Text(uiText(lang, label)) }) }
+                    listOf("system" to "Sistem", "light" to "Açık", "dark" to "Koyu").forEach { (id, label) -> FilterChip(selected = prefs.themeMode == id, onClick = { onChange(prefs.copy(themeMode = id)); savedNotice = false }, label = { Text(uiText(lang, label)) }) }
                 }
                 Spacer(Modifier.height(12.dp))
                 Text(uiText(lang, "Arayüz yazı boyutu"), fontWeight = FontWeight.Bold)
