@@ -1,5 +1,6 @@
 package de.bascurt.almancaokuyucu
 
+import androidx.compose.foundation.layout.width as foundationWidth
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -11,7 +12,4 @@ import androidx.compose.ui.unit.dp
  * to an 80% drawer while leaving enough of the underlying screen visible.
  */
 internal fun Modifier.width(width: Dp): Modifier =
-    androidx.compose.foundation.layout.width(
-        this,
-        if (width == 310.dp) 288.dp else width
-    )
+    this.foundationWidth(if (width == 310.dp) 288.dp else width)
