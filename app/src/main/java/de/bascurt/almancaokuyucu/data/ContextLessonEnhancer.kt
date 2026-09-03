@@ -106,7 +106,73 @@ internal object ContextLessonEnhancer {
                 }
             }
         }
-        return result
+        return applyAutomaticLinks(lessonId, sentenceIndex, result)
+    }
+
+    private fun applyAutomaticLinks(
+        lessonId: String,
+        sentenceIndex: Int,
+        sentence: MutableList<ReadingToken>
+    ): List<ReadingToken> {
+        val nounPrefixClasses = setOf("Artikel", "Belirleyici", "Sıfat", "Zamir")
+
+        fun addWeakLink(indices: List<Int>, relation: String): String? {
+            if (indices.size < 2) return null
+            val linkId = "$lessonId-auto-$sentenceIndex-$relation-${indices.first()}-${indices.last()}"
+            indices.distinct().forEach { index ->
+                val original = sentence[index].lexeme
+                sentence[index] = sentence[index].copy(lexeme = original.copy(
+                    contextLinkId = original.contextLinkId ?: linkId,
+                    contextLinkIds = (original.contextLinkIds + linkId).distinct()
+                ))
+            }
+            return linkId
+        }
+
+        for (nounIndex in sentence.indices) {
+            if (sentence[nounIndex].lexeme.wordClass != "İsim") continue
+            var start = nounIndex
+            var cursor = nounIndex - 1
+            while (cursor >= 0 && sentence[cursor].lexeme.wordClass in nounPrefixClasses) {
+                start = cursor
+                cursor--
+            }
+            if (start < nounIndex) addWeakLink((start..nounIndex).toList(), "noun")
+        }
+
+        for (prepIndex in sentence.indices) {
+            if (sentence[prepIndex].lexeme.wordClass != "Edat") continue
+            val objectIndices = mutableListOf<Int>()
+            var cursor = prepIndex + 1
+            while (cursor < sentence.size && cursor <= prepIndex + 4) {
+                val wc = sentence[cursor].lexeme.wordClass
+                if (wc == "İsim") {
+                    objectIndices += cursor
+                    break
+                }
+                if (wc in nounPrefixClasses) {
+                    objectIndices += cursor
+                    cursor++
+                    continue
+                }
+                break
+            }
+            if (objectIndices.isEmpty() || sentence[objectIndices.last()].lexeme.wordClass != "İsim") continue
+            val relationIndices = mutableListOf(prepIndex).apply { addAll(objectIndices) }
+            val relationLink = addWeakLink(relationIndices, "prep") ?: continue
+
+            val strongId = sentence[prepIndex].lexeme.strongLinkId
+            if (strongId != null) {
+                sentence.indices.filter { sentence[it].lexeme.strongLinkId == strongId }.forEach { index ->
+                    val original = sentence[index].lexeme
+                    sentence[index] = sentence[index].copy(lexeme = original.copy(
+                        contextLinkId = original.contextLinkId ?: relationLink,
+                        contextLinkIds = (original.contextLinkIds + relationLink).distinct()
+                    ))
+                }
+            }
+        }
+        return sentence
     }
 
     private fun clean(text: String): String = text
