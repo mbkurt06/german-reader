@@ -1,11 +1,8 @@
-name: Add Noun Phrase Context Links
-
+name: Patch Noun Phrase Highlight UI
 on:
-  workflow_dispatch:
   push:
     paths:
-      - '.github/workflows/add-noun-phrase-links.yml'
-
+      - .github/workflows/add-noun-phrase-links.yml
 jobs:
   patch:
     runs-on: ubuntu-latest
@@ -13,75 +10,13 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Apply noun phrase links
-        shell: bash
+      - name: Patch UI
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          p = Path('app/src/main/java/de/bascurt/almancaokuyucu/MainActivity.kt')
-          s = p.read_text()
-          old = '''                    val linked = highlightEnabled && sameSentence && !active && selected?.contextLinkId != null &&
-                        selected.contextLinkId == token.lexeme.contextLinkId
-'''
-          new = '''                    val selectedContextLinks = buildSet {
-                        selected?.contextLinkId?.let { add(it) }
-                        selected?.contextLinkIds?.let { addAll(it) }
-                    }
-                    val tokenContextLinks = buildSet {
-                        token.lexeme.contextLinkId?.let { add(it) }
-                        addAll(token.lexeme.contextLinkIds)
-                    }
-                    val linked = highlightEnabled && sameSentence && !active &&
-                        selectedContextLinks.isNotEmpty() && selectedContextLinks.any { it in tokenContextLinks }
-'''
-          if old in s:
-              s = s.replace(old, new, 1)
-          elif 'selectedContextLinks = buildSet' not in s:
-              raise SystemExit('MainActivity weak highlight block not found')
-          p.write_text(s)
-
-          p = Path('app/src/main/java/de/bascurt/almancaokuyucu/data/FocusedLessons.kt')
-          s = p.read_text()
-          anchor = '                linkAt(0, "ihre neue Arbeit", "yeni işi", "ihre neue Arbeit → onun yeni işi. Bu isim grubunda ihre iyelik bildirir, neue sıfattır ve Arbeit isimdir; seçilen kelime koyu, aynı isim grubundaki diğer kelimeler bağlantılı olarak açık vurgulanır."),\n'
-          additions = '''                linkAt(1, "die Kollegen", "çalışma arkadaşları", "die Kollegen → çalışma arkadaşları. Artikel + isim aynı isim grubudur; seçilen kelime koyu, grubun diğer kelimesi açık vurgulanır."),
-                linkAt(1, "eine Zimmerliste", "bir oda listesi", "eine Zimmerliste → bir oda listesi. Belirsiz artikel ve isim aynı isim grubudur."),
-                linkAt(2, "Ihre Chefin", "onun şefi", "Ihre Chefin → onun şefi. İyelik belirleyicisi ve isim aynı isim grubudur."),
-                linkAt(2, "die Rezeption", "resepsiyon", "die Rezeption → resepsiyon. Artikel ve isim aynı isim grubudur."),
-                linkAt(2, "die wichtigsten Aufgaben", "en önemli görevler", "die wichtigsten Aufgaben → en önemli görevler. Artikel + sıfat + isim aynı isim grubudur."),
-                linkAt(3, "die ersten Fragen", "ilk sorular", "die ersten Fragen → ilk sorular. Artikel + sıfat + isim aynı isim grubudur."),
-                linkAt(3, "den Gästen", "misafirler", "den Gästen → misafirler. Dativ çoğul artikel ve isim aynı isim grubudur."),
-                linkAt(4, "Ein Gast", "bir misafir", "Ein Gast → bir misafir. Belirsiz artikel ve isim aynı isim grubudur."),
-                linkAt(4, "dem Frühstück", "kahvaltı", "dem Frühstück → kahvaltı. Dativ artikel ve isim aynı isim grubudur."),
-                linkAt(4, "den Weg", "yolu", "den Weg → yolu. Akkusativ artikel ve isim aynı isim grubudur."),
-                linkAt(5, "die Zimmerliste", "oda listesi", "die Zimmerliste → oda listesi. Artikel ve isim aynı isim grubudur."),
-                linkAt(6, "eine kurze Pause", "kısa bir mola", "eine kurze Pause → kısa bir mola. Belirsiz artikel + sıfat + isim aynı isim grubudur; hangisi seçilirse o koyu, diğerleri açık vurgulanır."),
-                linkAt(6, "den Kollegen", "çalışma arkadaşları", "den Kollegen → çalışma arkadaşları. Dativ çoğul artikel ve isim aynı isim grubudur."),
-                linkAt(7, "der Pause", "mola", "der Pause → mola. Dativ artikel ve isim aynı isim grubudur."),
-                linkAt(7, "der Rezeption", "resepsiyon", "der Rezeption → resepsiyon. Dativ artikel ve isim aynı isim grubudur."),
-                linkAt(8, "Eine Kollegin", "bir çalışma arkadaşı", "Eine Kollegin → bir çalışma arkadaşı. Belirsiz artikel ve isim aynı isim grubudur."),
-                linkAt(8, "einige wichtige Sachen", "bazı önemli şeyler", "einige wichtige Sachen → bazı önemli şeyler. Belirleyici + sıfat + isim aynı isim grubudur."),
-                linkAt(10, "ihrer Chefin", "şefi", "ihrer Chefin → şefi. İyelik belirleyicisi ve isim aynı isim grubudur."),
-                linkAt(10, "den ersten Arbeitstag", "ilk iş günü", "den ersten Arbeitstag → ilk iş günü. Artikel + sıfat + isim aynı isim grubudur."),
-                linkAt(11, "ihren Platz", "yerini", "ihren Platz → yerini. İyelik belirleyicisi ve isim aynı isim grubudur."),
-                linkAt(11, "den Kollegen", "çalışma arkadaşları", "den Kollegen → çalışma arkadaşları. Dativ çoğul artikel ve isim aynı isim grubudur."),
-'''
-          if 'linkAt(6, "eine kurze Pause"' not in s:
-              if anchor not in s:
-                  raise SystemExit('FocusedLessons noun phrase anchor missing')
-              s = s.replace(anchor, anchor + additions, 1)
-          p.write_text(s)
-          PY
-
-      - name: Commit changes
-        shell: bash
+          python3 -c 'from pathlib import Path; p=Path("app/src/main/java/de/bascurt/almancaokuyucu/MainActivity.kt"); s=p.read_text(); old="                    val linked = highlightEnabled && sameSentence && !active && selected?.contextLinkId != null &&\n                        selected.contextLinkId == token.lexeme.contextLinkId\n"; new="                    val selectedContextLinks = buildSet {\n                        selected?.contextLinkId?.let { add(it) }\n                        selected?.contextLinkIds?.let { addAll(it) }\n                    }\n                    val tokenContextLinks = buildSet {\n                        token.lexeme.contextLinkId?.let { add(it) }\n                        addAll(token.lexeme.contextLinkIds)\n                    }\n                    val linked = highlightEnabled && sameSentence && !active &&\n                        selectedContextLinks.isNotEmpty() && selectedContextLinks.any { it in tokenContextLinks }\n"; assert old in s; p.write_text(s.replace(old,new,1))'
+      - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/src/main/java/de/bascurt/almancaokuyucu/MainActivity.kt app/src/main/java/de/bascurt/almancaokuyucu/data/FocusedLessons.kt
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Link noun phrase words contextually in first story"
-            git push
-          fi
+          git add app/src/main/java/de/bascurt/almancaokuyucu/MainActivity.kt
+          git commit -m "Support overlapping contextual highlights"
+          git push
