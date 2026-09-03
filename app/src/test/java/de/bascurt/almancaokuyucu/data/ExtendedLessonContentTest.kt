@@ -16,8 +16,7 @@ class ExtendedLessonContentTest {
 
     @Test
     fun aufwaermenDoesNotCaptureAufDemFahrradPreposition() {
-        val lesson = SampleLessons.all.first { it.id == "b1-fitness" }
-        val sentence = lesson.sentences.first { row -> row.any { it.text.startsWith("wärmt") } }
+        val sentence = auditSentence("Er wärmt sich zehn Minuten auf dem Fahrrad auf.")
 
         val waermt = sentence.first { it.text.startsWith("wärmt") }
         val sich = sentence.first { it.text.trim('.', ',', ';', '!', '?') == "sich" }
@@ -32,12 +31,19 @@ class ExtendedLessonContentTest {
 
     @Test
     fun kitchenEinraeumenLinksVerbAndParticle() {
-        val lesson = SampleLessons.all.first { it.id == "a2-kueche" }
-        val sentence = lesson.sentences.first { row -> row.any { it.text.startsWith("räumt") } && row.any { it.text.startsWith("ein") } }
+        val sentence = auditSentence("Nach dem Essen räumt sie das Geschirr in die Spülmaschine ein.")
         val verb = sentence.first { it.text.startsWith("räumt") }
         val particle = sentence.last { it.text.trim('.', ',', ';', '!', '?') == "ein" }
 
         assertEquals("einräumen", verb.lexeme.base)
         assertEquals(verb.lexeme.id, particle.lexeme.id)
     }
+
+    private fun auditSentence(text: String) = ExtendedLessonFactory.lesson(
+        id = "content-regression",
+        title = "Audit",
+        level = "A2",
+        summary = "test",
+        texts = listOf(text)
+    ).sentences.first()
 }
