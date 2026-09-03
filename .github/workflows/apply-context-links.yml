@@ -1,0 +1,78 @@
+name: Apply Context Links
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-context-links.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch contextual links
+        shell: python
+        run: |
+          from pathlib import Path
+
+          # 1) Lexeme can carry a weak context link without becoming one lexeme/group.
+          p = Path('app/src/main/java/de/bascurt/almancaokuyucu/model/ReaderModels.kt')
+          s = p.read_text()
+          old = '    val superlative: String? = null\n)'
+          new = '    val superlative: String? = null,\n    val contextLinkId: String? = null,\n    val contextUsage: String? = null\n)'
+          assert old in s
+          p.write_text(s.replace(old, new))
+
+          # 2) Context phrases can be either true strong groups or weak contextual links.
+          p = Path('app/src/main/java/de/bascurt/almancaokuyucu/data/ContextLessonEnhancer.kt')
+          s = p.read_text()
+          s = s.replace(
+              '    val explanation: String\n)',
+              '    val explanation: String,\n    val weakLink: Boolean = false\n)'
+          )
+          old = '''                val grouped = Lexeme(\n                    id = "$lessonId-context-$sentenceIndex-$start-${wanted.joinToString("-")}",\n                    base = shown,\n                    meaning = phrase.meaning,\n                    type = "Kelime grubu",\n                    explanation = phrase.explanation,\n                    quizEligible = true,\n                    wordClass = "Kelime grubu"\n                )\n                for (index in start until start + wanted.size) {\n                    result[index] = result[index].copy(lexeme = grouped)\n                }'''
+          new = '''                val linkId = "$lessonId-context-$sentenceIndex-$start-${wanted.joinToString("-")}"\n                if (phrase.weakLink) {\n                    for (index in start until start + wanted.size) {\n                        val original = result[index].lexeme\n                        result[index] = result[index].copy(lexeme = original.copy(\n                            id = "${original.id}-ctx-$sentenceIndex-$start-$index",\n                            contextLinkId = linkId,\n                            contextUsage = phrase.explanation\n                        ))\n                    }\n                } else {\n                    val grouped = Lexeme(\n                        id = linkId,\n                        base = shown,\n                        meaning = phrase.meaning,\n                        type = "Kelime grubu",\n                        explanation = phrase.explanation,\n                        quizEligible = true,\n                        wordClass = "Kelime grubu"\n                    )\n                    for (index in start until start + wanted.size) {\n                        result[index] = result[index].copy(lexeme = grouped)\n                    }\n                }'''
+          assert old in s
+          p.write_text(s.replace(old, new))
+
+          # 3) Reader: selected token is dark; context-linked companions use a lighter turquoise.
+          p = Path('app/src/main/java/de/bascurt/almancaokuyucu/MainActivity.kt')
+          s = p.read_text()
+          old = '''                    val active = highlightEnabled && selected?.id == token.lexeme.id\n                    Text(\n                        token.text,\n                        fontSize = textSize.sp,\n                        lineHeight = (textSize + 10).sp,\n                        color = if (active) Color.White else MaterialTheme.colorScheme.onBackground,\n                        modifier = Modifier.background(if (active) Turquoise else Color.Transparent, RoundedCornerShape(7.dp)).clickable { onSelect(token.lexeme) }.padding(horizontal = 2.dp, vertical = 2.dp)\n                    )'''
+          new = '''                    val active = highlightEnabled && selected?.id == token.lexeme.id\n                    val linked = highlightEnabled && !active && selected?.contextLinkId != null &&\n                        selected.contextLinkId == token.lexeme.contextLinkId\n                    Text(\n                        token.text,\n                        fontSize = textSize.sp,\n                        lineHeight = (textSize + 10).sp,\n                        color = if (active) Color.White else MaterialTheme.colorScheme.onBackground,\n                        modifier = Modifier.background(\n                            when { active -> Turquoise; linked -> Turquoise.copy(alpha = .24f); else -> Color.Transparent },\n                            RoundedCornerShape(7.dp)\n                        ).clickable { onSelect(token.lexeme) }.padding(horizontal = 2.dp, vertical = 2.dp)\n                    )'''
+          assert old in s
+          s = s.replace(old, new)
+          old2 = '''                if (detailed) selected.explanation?.let { Spacer(Modifier.height(7.dp)); Text(it, color = Color(0xFFD5E4E8), fontSize = 14.sp, lineHeight = 19.sp) }'''
+          new2 = '''                if (detailed) selected.explanation?.let { Spacer(Modifier.height(7.dp)); Text(it, color = Color(0xFFD5E4E8), fontSize = 14.sp, lineHeight = 19.sp) }\n                selected.contextUsage?.let { Spacer(Modifier.height(7.dp)); DetailLine("Bu cümlede", it) }'''
+          assert old2 in s
+          p.write_text(s.replace(old2, new2))
+
+          # 4) Only Ein neuer Anfang: convert requested ordinary combinations to weak context links.
+          p = Path('app/src/main/java/de/bascurt/almancaokuyucu/data/FocusedLessons.kt')
+          s = p.read_text()
+          old = '''                phrase("am Morgen", "sabah", "Bu cümlede ‘am Morgen’ birlikte zaman bildirir; ‘am’ ve ‘Morgen’ ayrı ayrı çevrilmez."),\n                phrase("an der Rezeption", "resepsiyonda", "Bu kullanım bulunduğu yeri anlatır: ‘an der Rezeption’ = resepsiyonda."),\n                phrase("nach dem Frühstück", "kahvaltıyı / kahvaltı hakkında", "Buradaki ‘nach’ sormak fiiliyle birlikte ‘fragen nach’ yapısının parçasıdır; zaman anlamındaki ‘kahvaltıdan sonra’ değildir."),\n                phrase("am Mittag", "öğlen", "‘am Mittag’ birlikte öğle vaktini anlatır."),\n                phrase("nach der Pause", "moladan sonra", "Bu cümlede ‘nach’ zamansal kullanılır: moladan sonra."),\n                phrase("am Abend", "akşam", "‘am Abend’ birlikte akşam vaktini anlatır."),\n                phrase("ersten Arbeitstag", "ilk iş günü", "Bu cümlede ifade Elif'in işe başladığı ilk günü anlatır.")'''
+          new = '''                link("im Hotel", "otelde", "im Hotel → otelde. im = in + dem; bir yerin içinde bulunmayı anlatır."),\n                link("am Morgen", "sabah", "am Morgen → sabah / sabahleyin. am = an + dem; burada zaman bildirir."),\n                link("die ersten Fragen von den Gästen", "misafirlerin ilk soruları", "die ersten Fragen von den Gästen → misafirlerin ilk soruları. von burada soruların kimden geldiğini / kime ait olduğunu bağlar."),\n                link("noch einmal", "bir kez daha", "noch einmal → bir kez daha / tekrar; eylemin tekrarlandığını anlatır."),\n                link("am Mittag", "öğlen", "am Mittag → öğlen. am = an + dem; burada zaman bildirir."),\n                link("mit den Kollegen", "çalışma arkadaşlarıyla", "mit den Kollegen → çalışma arkadaşlarıyla. mit burada beraberliği anlatır ve Dativ alır."),\n                link("nach der Pause", "moladan sonra", "nach der Pause → moladan sonra. nach burada zamansal kullanılır ve Dativ alır."),\n                link("an der Rezeption", "resepsiyonda", "an der Rezeption → resepsiyonda. an burada bulunulan yeri anlatır."),\n                link("am Arbeitsplatz", "iş yerinde", "am Arbeitsplatz → iş yerinde. am = an + dem; burada konum bildirir."),\n                link("bei Bedarf", "gerektiğinde", "bei Bedarf → gerektiğinde / ihtiyaç hâlinde. bei burada koşul/durum bildirir ve Dativ alır."),\n                link("am Abend", "akşam", "am Abend → akşam. am = an + dem; burada zaman bildirir."),\n                link("mit ihrer Chefin", "şefiyle", "mit ihrer Chefin → şefiyle. mit beraberliği anlatır ve Dativ alır."),\n                link("über den ersten Arbeitstag", "ilk iş günü hakkında", "über den ersten Arbeitstag → ilk iş günü hakkında. über burada konuşulan konuyu belirtir."),\n                link("zum Schluss", "son olarak", "zum Schluss → son olarak / en sonunda. zum = zu + dem; ifade burada sıralama/zaman anlamı verir."),\n                link("von den Kollegen", "çalışma arkadaşlarıyla / çalışma arkadaşlarından", "von den Kollegen → çalışma arkadaşlarından/arkadaşlarıyla vedalaşma bağlamı. von Dativ alır.")'''
+          assert old in s
+          s = s.replace(old, new)
+          # Do not let global common phrases turn these requested weak links back into strong groups in this story.
+          s = s.replace('phrases = commonPhrases() + listOf(\n                link("im Hotel"', 'phrases = listOf(\n                link("im Hotel"', 1)
+          helper = '''\n    private fun link(text: String, meaning: String, explanation: String) = ContextPhrase(\n        words = text.lowercase().split(" "),\n        meaning = meaning,\n        explanation = explanation,\n        weakLink = true\n    )\n'''
+          marker = '\n    private fun phrase(text: String, meaning: String, explanation: String) = ContextPhrase('
+          assert marker in s
+          s = s.replace(marker, helper + marker)
+          p.write_text(s)
+
+      - name: Commit changes
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add app/src/main/java/de/bascurt/almancaokuyucu/model/ReaderModels.kt \
+                  app/src/main/java/de/bascurt/almancaokuyucu/data/ContextLessonEnhancer.kt \
+                  app/src/main/java/de/bascurt/almancaokuyucu/data/FocusedLessons.kt \
+                  app/src/main/java/de/bascurt/almancaokuyucu/MainActivity.kt
+          git commit -m 'Add contextual linked highlighting to first story'
+          git push
