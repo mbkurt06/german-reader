@@ -392,11 +392,24 @@ private fun ReaderScreen(
     var tab by remember(lesson.id) { mutableStateOf(ReaderTab.STORY) }
     var selected by remember(lesson.id) { mutableStateOf<Lexeme?>(null) }
     var selectedSentenceIndex by remember(lesson.id) { mutableIntStateOf(-1) }
-    val isSaved = selected?.let { item -> saved.any { it.id == item.id } } == true
+    val selectedItem = selected
+    val isSaved = selectedItem?.let { item -> saved.any { it.id == item.id } } == true
+
+    fun closeDictionary() {
+        selected = null
+        selectedSentenceIndex = -1
+    }
+
+    BackHandler {
+        if (selected != null) closeDictionary() else onHome()
+    }
+
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        if (tab == ReaderTab.STORY) MeaningPanel(selected, isSaved, preferences.appLanguage, { selected?.let(onToggleSaved) }, onHome)
-        else SectionHeader(lesson.title, onHome)
-        ReaderTabs(tab, preferences.appLanguage) { tab = it }
+        ReaderHeader(lesson.title, onHome)
+        ReaderTabs(tab, preferences.appLanguage) {
+            if (it != ReaderTab.STORY) closeDictionary()
+            tab = it
+        }
         Box(Modifier.weight(1f)) {
             when (tab) {
                 ReaderTab.STORY -> StoryScreen(
@@ -414,45 +427,117 @@ private fun ReaderScreen(
                     onTextSizeChange = { onPreferences(preferences.copy(storyTextSize = it)) },
                     onBrightnessChange = { onPreferences(preferences.copy(readerBrightness = it)) },
                     onNightModeChange = { onPreferences(preferences.copy(readerNightMode = it)) }
-                ) { sentenceIndex, lexeme -> selectedSentenceIndex = sentenceIndex; selected = lexeme }
+                ) { sentenceIndex, lexeme ->
+                    selectedSentenceIndex = sentenceIndex
+                    selected = lexeme
+                }
                 ReaderTab.QUIZ -> QuizScreen(lesson, preferences.quizQuestionCount)
                 ReaderTab.WORDS -> LessonWordsScreen(lesson, saved, onToggleSaved)
                 ReaderTab.GRAMMAR -> GrammarScreen(lesson)
             }
         }
     }
+
+    if (tab == ReaderTab.STORY && selectedItem != null) {
+        ModalBottomSheet(
+            onDismissRequest = ::closeDictionary,
+            containerColor = Color(0xFF102F3C),
+            contentColor = Color.White,
+            scrimColor = Color.Black.copy(alpha = .20f),
+            tonalElevation = 0.dp,
+            shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
+            dragHandle = {
+                Box(
+                    Modifier
+                        .padding(top = 10.dp, bottom = 6.dp)
+                        .size(width = 44.dp, height = 4.dp)
+                        .background(Color.White.copy(alpha = .42f), RoundedCornerShape(8.dp))
+                )
+            }
+        ) {
+            DictionaryBottomSheetContent(
+                item = selectedItem,
+                isSaved = isSaved,
+                appLanguage = preferences.appLanguage,
+                onSave = { onToggleSaved(selectedItem) },
+                onClose = ::closeDictionary
+            )
+        }
+    }
 }
 
 @Composable
-private fun MeaningPanel(selected: Lexeme?, isSaved: Boolean, appLanguage: String, onSave: () -> Unit, onHome: () -> Unit) {
-    Box(Modifier.fillMaxWidth().height(215.dp).background(Brush.verticalGradient(listOf(Color(0xFF07171F), Dark))).padding(horizontal = 22.dp, vertical = 14.dp)) {
-        Text("‹ ${uiText(appLanguage, "Hikâyeler")}", color = Color.White, fontSize = 17.sp, modifier = Modifier.clickable(onClick = onHome).padding(6.dp))
-        Text(if (isSaved) "★" else "☆", color = if (selected == null) Color.White.copy(alpha = .35f) else Color.White, fontSize = 34.sp, modifier = Modifier.align(Alignment.TopEnd).clickable(enabled = selected != null, onClick = onSave).padding(4.dp))
-        Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().heightIn(max = 165.dp).verticalScroll(rememberScrollState())) {
-            if (selected == null) {
-                Text(uiText(appLanguage, "Bir kelimeye dokun"), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(5.dp))
-                Text(uiText(appLanguage, "Anlamı, kelime türü ve kullanım bilgisi burada görünecek."), color = Color(0xFFD5E4E8), fontSize = 15.sp)
-            } else {
-                Text(dictionaryHeadword(selected), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
-                Text(dictionaryWordClass(selected), color = Color(0xFF9ED7D6), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(5.dp))
-                Text(uiText(appLanguage, "Anlam"), color = Color(0xFF9ED7D6), fontSize = 12.sp)
-                Text(selected.meaning, color = Color.White, fontSize = 16.sp)
-                dictionaryForms(selected)?.let { forms ->
-                    Spacer(Modifier.height(3.dp))
-                    Text(forms, color = Color(0xFFD5E4E8), fontSize = 15.sp)
-                }
-                if (!selected.contextExpression.isNullOrBlank() && !selected.contextMeaning.isNullOrBlank()) {
-                    Spacer(Modifier.height(7.dp))
-                    HorizontalDivider(color = Color.White.copy(alpha = .16f))
-                    Spacer(Modifier.height(5.dp))
-                    Text(uiText(appLanguage, "Cümle içindeki kullanım"), color = Color(0xFF9ED7D6), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    Text(selected.contextExpression, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Text(selected.contextMeaning, color = Color(0xFFD5E4E8), fontSize = 14.sp)
-                }
-                Spacer(Modifier.height(8.dp))
+private fun ReaderHeader(title: String, onHome: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(Dark)
+            .statusBarsPadding()
+            .height(56.dp)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "←",
+            color = Color.White,
+            fontSize = 29.sp,
+            modifier = Modifier.clickable(onClick = onHome).padding(horizontal = 12.dp, vertical = 8.dp)
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(title, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+    }
+}
+
+@Composable
+private fun DictionaryBottomSheetContent(
+    item: Lexeme,
+    isSaved: Boolean,
+    appLanguage: String,
+    onSave: () -> Unit,
+    onClose: () -> Unit
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(start = 22.dp, end = 14.dp, bottom = 24.dp)
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f).padding(end = 8.dp)) {
+                Text(dictionaryHeadword(item), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
+                Text(dictionaryWordClass(item), color = Color(0xFF9ED7D6), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
+            Text(
+                if (isSaved) "★" else "☆",
+                color = Color.White,
+                fontSize = 31.sp,
+                modifier = Modifier.clickable(onClick = onSave).padding(horizontal = 8.dp, vertical = 2.dp)
+            )
+            Text(
+                "×",
+                color = Color.White,
+                fontSize = 31.sp,
+                modifier = Modifier.clickable(onClick = onClose).padding(horizontal = 8.dp, vertical = 2.dp)
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Column(Modifier.fillMaxWidth().heightIn(max = 330.dp).verticalScroll(rememberScrollState()).padding(end = 8.dp)) {
+            Text(uiText(appLanguage, "Anlam"), color = Color(0xFF9ED7D6), fontSize = 12.sp)
+            Text(item.meaning, color = Color.White, fontSize = 17.sp)
+            dictionaryForms(item)?.let { forms ->
+                Spacer(Modifier.height(4.dp))
+                Text(forms, color = Color(0xFFD5E4E8), fontSize = 15.sp)
+            }
+            if (!item.contextExpression.isNullOrBlank() && !item.contextMeaning.isNullOrBlank()) {
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = Color.White.copy(alpha = .16f))
+                Spacer(Modifier.height(10.dp))
+                Text(uiText(appLanguage, "Cümle içindeki kullanım"), color = Color(0xFF9ED7D6), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(3.dp))
+                Text(item.contextExpression, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(item.contextMeaning, color = Color(0xFFD5E4E8), fontSize = 15.sp)
+            }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
