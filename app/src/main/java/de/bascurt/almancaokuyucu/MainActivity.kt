@@ -829,6 +829,19 @@ private fun SettingsScreen(prefs: UserPreferences, onSave: (UserPreferences) -> 
     var confirmReset by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            SettingCard("Dil") {
+                Text("Uygulama dili", fontWeight = FontWeight.Bold)
+                Text("Menüler ve uygulama arayüzü için kullanılacak dil.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                Spacer(Modifier.height(8.dp))
+                LanguageDropdown(prefs.appLanguage) { onSave(prefs.copy(appLanguage = it)) }
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(16.dp))
+                Text("Hikâye çeviri dili", fontWeight = FontWeight.Bold)
+                Text("Hikâyedeki Çeviri butonuna bastığında gösterilecek dil.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                Spacer(Modifier.height(8.dp))
+                LanguageDropdown(prefs.translationLanguage) { onSave(prefs.copy(translationLanguage = it)) }
+            }
             SettingCard("Görünüm") {
                 Text("Tema", fontWeight = FontWeight.Bold)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -861,6 +874,38 @@ private fun SettingsScreen(prefs: UserPreferences, onSave: (UserPreferences) -> 
                 confirmButton = { TextButton(onClick = { onFullReset(); confirmReset = false }) { Text("Tamamen sıfırla") } },
                 dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Vazgeç") } }
             )
+        }
+    }
+}
+
+@Composable
+private fun LanguageDropdown(selected: String, onSelected: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val languages = listOf(
+        "tr" to "Türkçe",
+        "en" to "İngilizce",
+        "es" to "İspanyolca",
+        "fr" to "Fransızca",
+        "it" to "İtalyanca"
+    )
+    val selectedLabel = languages.firstOrNull { it.first == selected }?.second ?: "Türkçe"
+    Box(Modifier.fillMaxWidth()) {
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(14.dp)
+        ) {
+            Text(selectedLabel, Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Start)
+            Text("▾")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.fillMaxWidth(.9f)) {
+            languages.forEach { (code, label) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    trailingIcon = { if (code == selected) Text("✓", color = Turquoise, fontWeight = FontWeight.Bold) },
+                    onClick = { onSelected(code); expanded = false }
+                )
+            }
         }
     }
 }
