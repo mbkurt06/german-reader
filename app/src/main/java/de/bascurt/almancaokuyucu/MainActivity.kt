@@ -1354,22 +1354,23 @@ private fun SettingsScreen(
 private fun LanguageDropdown(selected: String, appLanguage: String, onSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val languages = listOf(
-        "tr" to "Türkçe",
-        "en" to "İngilizce",
-        "es" to "İspanyolca",
-        "fr" to "Fransızca",
-        "it" to "İtalyanca"
+        "tr" to "🇹🇷 Türkçe",
+        "en" to "🇬🇧 English",
+        "de" to "🇩🇪 Deutsch",
+        "es" to "🇪🇸 Español",
+        "fr" to "🇫🇷 Français",
+        "it" to "🇮🇹 Italiano"
     )
-    val selectedLabel = languages.firstOrNull { it.first == selected }?.second ?: "Türkçe"
+    val selectedLabel = languages.firstOrNull { it.first == selected }?.second ?: "🇹🇷 Türkçe"
     Box(Modifier.fillMaxWidth()) {
         OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(14.dp)) {
-            Text(uiText(appLanguage, selectedLabel), Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Start)
+            Text(selectedLabel, Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Start)
             Text("▾")
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.fillMaxWidth(.9f)) {
             languages.forEach { (code, label) ->
                 DropdownMenuItem(
-                    text = { Text(uiText(appLanguage, label)) },
+                    text = { Text(label) },
                     trailingIcon = { if (code == selected) Text("✓", color = Turquoise, fontWeight = FontWeight.Bold) },
                     onClick = { onSelected(code); expanded = false }
                 )
