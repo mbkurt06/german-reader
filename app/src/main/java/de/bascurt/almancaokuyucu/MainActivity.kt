@@ -185,7 +185,7 @@ private fun MainShell(
     var pendingPage by remember { mutableStateOf<AppPage?>(null) }
     var showUnsavedDialog by remember { mutableStateOf(false) }
     val settingsDirty = settingsDraft != preferences
-    val lang = preferences.appLanguage
+    val lang = if (page == AppPage.SETTINGS) settingsDraft.appLanguage else preferences.appLanguage
     val shellPages = setOf(AppPage.HOME, AppPage.MY_WORDS, AppPage.STUDY_MENU, AppPage.PROFILE, AppPage.READ_STORIES, AppPage.STATS, AppPage.SETTINGS, AppPage.ABOUT)
 
     fun navigate(target: AppPage) {
@@ -1276,7 +1276,7 @@ private fun SettingsScreen(
     var confirmReset by remember { mutableStateOf(false) }
     var savedNotice by remember { mutableStateOf(false) }
     val dirty = prefs != savedPrefs
-    val lang = savedPrefs.appLanguage
+    val lang = prefs.appLanguage
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
             SettingCard(uiText(lang, "Dil")) {
