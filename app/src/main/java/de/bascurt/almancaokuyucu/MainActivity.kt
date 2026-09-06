@@ -1162,31 +1162,36 @@ private fun MyWordsScreen(
     }
 }
 
-@Composable private fun StudyMenuScreen(items: List<Lexeme>, onChoose: (AppPage) -> Unit) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
+@Composable
+private fun StudyMenuScreen(items: List<Lexeme>, appLanguage: String, onChoose: (AppPage) -> Unit) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
         Card(colors = CardDefaults.cardColors(containerColor = Turquoise.copy(alpha = .12f)), shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp)) {
-                Text("Kelime Çalışması", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text(uiText(appLanguage, "Kelime Çalışması"), fontSize = 24.sp, fontWeight = FontWeight.Bold)
                 Text("Bu tur için ${items.size} kelime hazır", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(6.dp))
-                Text("Sistem yeni ve zorlandığın kelimelere öncelik verir; doğru bildiklerini zamanla daha seyrek sorar.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                Text("Yeni ve zorlandığın kelimeler daha sık; iyi bildiklerin daha seyrek gelir.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
-        StudyModeCard("1. Almanca → Türkçe", "Almanca kelime veya ifadeyi gör, doğru Türkçe anlamını seçeneklerden bul.") { onChoose(AppPage.STUDY_DE_TR) }
-        StudyModeCard("2. Türkçe → Almanca", "Türkçe anlamı gör, doğru Almanca kelime veya ifadeyi seçeneklerden bul.") { onChoose(AppPage.STUDY_TR_DE) }
-        StudyModeCard("3. Boşluk Doldurma", "Hikâyedeki gerçek cümlede eksik kelime veya ifadeyi seçeneklerden bul.") { onChoose(AppPage.STUDY_FILL) }
-        StudyModeCard("4. Aralıklı Tekrar", "Kaydettiğin yapıları örnek cümleleriyle tekrar et; bildiklerin daha uzun aralıklarla geri gelir.") { onChoose(AppPage.STUDY_REVIEW) }
+        StudyModeCard("1. ${uiText(appLanguage, "Kelime Anlamı")}", "Çoktan seçmeli anlam çalışması. İçeride DE ↔ TR yönünü istediğin anda değiştirebilirsin.") { onChoose(AppPage.STUDY_MEANING) }
+        StudyModeCard("2. ${uiText(appLanguage, "Cümleyi Tamamla")}", "Hikâyedeki gerçek cümlede eksik kelime veya ifadeyi seçeneklerden bul.") { onChoose(AppPage.STUDY_FILL) }
+        StudyModeCard("3. ${uiText(appLanguage, "Dinle ve Bul")}", "Almanca kelimeyi dinle ve doğru anlamı bul. DE ↔ TR yönü değiştirilebilir.") { onChoose(AppPage.STUDY_LISTEN) }
+        StudyModeCard("4. ${uiText(appLanguage, "Cümle Kur")}", "Hikâyedeki gerçek örnek cümlenin kelimelerini doğru sıraya diz.") { onChoose(AppPage.STUDY_SENTENCE_BUILD) }
+        StudyModeCard("5. ${uiText(appLanguage, "Yazma")}", "Gösterilen karşılığı klavyeyle yaz. DE ↔ TR yönü değiştirilebilir.") { onChoose(AppPage.STUDY_WRITE) }
+        StudyModeCard("6. ${uiText(appLanguage, "Aralıklı Tekrar")}", "Tekrar zamanı gelen kayıtlı yapıları Again / Hard / Good / Easy mantığıyla değerlendir.") { onChoose(AppPage.STUDY_REVIEW) }
+        StudyModeCard("7. ${uiText(appLanguage, "Hızlı Quiz")}", "10 saniyelik hızlı sorular; dört büyük renkli cevap alanından birine dokun.") { onChoose(AppPage.STUDY_QUICK) }
     }
 }
 
 @Composable
 private fun SpacedReviewScreen(
     items: List<Lexeme>,
+    appLanguage: String,
     onBack: () -> Unit,
     onRated: (Lexeme, ReviewRating) -> Unit
 ) {
     if (items.isEmpty()) {
-        EmptyStudyScreen(onBack, "Şu anda tekrar zamanı gelen kayıtlı yapı yok. Hikâyeden yeni kelimeler kaydedebilir veya daha sonra tekrar kontrol edebilirsin.")
+        EmptyStudyScreen(onBack, "Şu anda tekrar zamanı gelen kayıtlı yapı yok.")
         return
     }
     var index by remember(items) { mutableIntStateOf(0) }
@@ -1206,7 +1211,7 @@ private fun SpacedReviewScreen(
         onRated(item, rating)
         if (index == items.lastIndex) finished = true else index++
     }
-    StudyHeader("Aralıklı Tekrar", index, items.size, 0, onBack) {
+    StudyHeader(uiText(appLanguage, "Aralıklı Tekrar"), index, items.size, 0, onBack) {
         Text("Yapının anlamını ve kullanımını hatırlamaya çalış.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(14.dp))
         ElevatedCard(shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
@@ -1227,7 +1232,7 @@ private fun SpacedReviewScreen(
                     }
                     item.exampleSentence?.takeIf { it.isNotBlank() }?.let {
                         Spacer(Modifier.height(12.dp))
-                        Text("Örnek cümle", color = Turquoise, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(uiText(appLanguage, "Örnek cümle"), color = Turquoise, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -1237,46 +1242,59 @@ private fun SpacedReviewScreen(
         if (!revealed) {
             Button(onClick = { revealed = true }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Cevabı göster") }
         } else {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { rate(ReviewRating.AGAIN) }, modifier = Modifier.weight(1f)) { Text("Tekrar") }
-                OutlinedButton(onClick = { rate(ReviewRating.HARD) }, modifier = Modifier.weight(1f)) { Text("Zor") }
-                Button(onClick = { rate(ReviewRating.GOOD) }, modifier = Modifier.weight(1f)) { Text("Öğrendim") }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                ReviewRatingButton(uiText(appLanguage, "Tekrar"), Modifier.weight(1f)) { rate(ReviewRating.AGAIN) }
+                ReviewRatingButton(uiText(appLanguage, "Zor"), Modifier.weight(1f)) { rate(ReviewRating.HARD) }
+            }
+            Spacer(Modifier.height(7.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                ReviewRatingButton(uiText(appLanguage, "İyi"), Modifier.weight(1f)) { rate(ReviewRating.GOOD) }
+                ReviewRatingButton(uiText(appLanguage, "Kolay"), Modifier.weight(1f), filled = true) { rate(ReviewRating.EASY) }
             }
             Spacer(Modifier.height(8.dp))
-            Text("Tekrar: 10 dk  •  Zor: 1 gün  •  Öğrendim: 7 günden başlayarak artan aralık", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable private fun StudyModeCard(title: String, description: String, onClick: () -> Unit) {
-    ElevatedCard(Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(22.dp)) {
-        Column(Modifier.padding(20.dp)) {
-            Text(title, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(6.dp))
-            Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(15.dp))
-            Button(onClick = onClick, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(15.dp)) { Text("Başla", fontWeight = FontWeight.SemiBold) }
+            Text("Tekrar: 10 dk  •  Zor: 1 gün  •  İyi: 3 gün  •  Kolay: 7 gün", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
 @Composable
-private fun MeaningStudyScreen(items: List<Lexeme>, germanToTurkish: Boolean, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
+private fun ReviewRatingButton(label: String, modifier: Modifier, filled: Boolean = false, onClick: () -> Unit) {
+    if (filled) Button(onClick = onClick, modifier = modifier.height(48.dp)) { Text(label) }
+    else OutlinedButton(onClick = onClick, modifier = modifier.height(48.dp)) { Text(label) }
+}
+
+@Composable private fun StudyModeCard(title: String, description: String, onClick: () -> Unit) {
+    ElevatedCard(Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(22.dp)) {
+        Column(Modifier.padding(20.dp)) {
+            Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(5.dp))
+            Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(12.dp))
+            Button(onClick = onClick, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(15.dp)) { Text("Başla", fontWeight = FontWeight.SemiBold) }
+        }
+    }
+}
+
+@Composable
+private fun MeaningStudyScreen(items: List<Lexeme>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
     if (items.isEmpty()) { EmptyStudyScreen(onBack); return }
-    var index by remember(germanToTurkish) { mutableIntStateOf(0) }
+    var germanToTurkish by remember { mutableStateOf(true) }
+    var index by remember { mutableIntStateOf(0) }
     var selectedAnswer by remember(index, germanToTurkish) { mutableStateOf<String?>(null) }
-    var correctCount by remember(germanToTurkish) { mutableIntStateOf(0) }
+    var correctCount by remember { mutableIntStateOf(0) }
     val item = items[index % items.size]
-    val correct = if (germanToTurkish) item.meaning else item.base
+    val correct = if (germanToTurkish) item.meaning else wordDisplayTitle(item)
     val options = remember(index, items, germanToTurkish) {
-        (items.filter { it.id != item.id }.shuffled().map { if (germanToTurkish) it.meaning else it.base }.distinct().take(3) + correct).distinct().shuffled()
+        (items.filter { it.id != item.id }.shuffled().map { if (germanToTurkish) it.meaning else wordDisplayTitle(it) }.distinct().take(3) + correct).distinct().shuffled()
     }
 
-    StudyHeader(if (germanToTurkish) "Almanca → Türkçe" else "Türkçe → Almanca", index, items.size, correctCount, onBack) {
-        Text(if (germanToTurkish) "Bu Almanca ifade ne anlama geliyor?" else "Bu Türkçe anlamın Almancası hangisi?", color = MaterialTheme.colorScheme.onSurfaceVariant)
+    StudyHeader(uiText(appLanguage, "Kelime Anlamı"), index, items.size, correctCount, onBack) {
+        DirectionToggle(germanToTurkish) { germanToTurkish = !germanToTurkish }
+        Spacer(Modifier.height(12.dp))
+        Text(if (germanToTurkish) "Bu Almanca ifade ne anlama geliyor?" else "Bu anlamın Almancası hangisi?", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(10.dp))
         ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-            Text(if (germanToTurkish) wordDisplayTitle(item) else item.meaning, Modifier.padding(20.dp), fontSize = 27.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            Text(if (germanToTurkish) wordDisplayTitle(item) else item.meaning, Modifier.padding(20.dp), fontSize = 27.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(18.dp))
         options.forEach { option ->
@@ -1294,12 +1312,20 @@ private fun MeaningStudyScreen(items: List<Lexeme>, germanToTurkish: Boolean, on
             val ok = normalizeAnswer(it) == normalizeAnswer(correct)
             Text(if (ok) "Doğru ✓" else "Doğru cevap: $correct", color = if (ok) Success else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(12.dp))
-            Button(onClick = { index = (index + 1) % items.size }, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) { Text("Sonraki") }
+            Button(onClick = { index = (index + 1) % items.size }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text(uiText(appLanguage, "Sonraki")) }
         }
     }
 }
 
-@Composable private fun FillBlankStudyScreen(items: List<Lexeme>, lessons: List<ReaderLesson>, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
+@Composable
+private fun DirectionToggle(germanToTurkish: Boolean, onToggle: () -> Unit) {
+    OutlinedButton(onClick = onToggle, modifier = Modifier.fillMaxWidth().height(46.dp), shape = RoundedCornerShape(14.dp)) {
+        Text(if (germanToTurkish) "DE → TR   ⇄" else "TR → DE   ⇄", fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun FillBlankStudyScreen(items: List<Lexeme>, lessons: List<ReaderLesson>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
     val cases = remember(items, lessons) { buildFillBlankCases(items, lessons) }
     if (cases.isEmpty()) { EmptyStudyScreen(onBack, "Bu çalışma turundaki kelimeler için hikâye içinde boşluk doldurma cümlesi bulunamadı."); return }
     var index by remember { mutableIntStateOf(0) }
@@ -1307,15 +1333,15 @@ private fun MeaningStudyScreen(items: List<Lexeme>, germanToTurkish: Boolean, on
     var correctCount by remember { mutableIntStateOf(0) }
     val case = cases[index % cases.size]
     val distractors = remember(index, cases, items) {
-        val pool = items.filter { it.id != case.lexeme.id }.map { it.base }.distinct().shuffled().take(3)
+        val pool = items.filter { it.id != case.lexeme.id }.map { wordDisplayTitle(it) }.distinct().shuffled().take(3)
         (pool + case.answer).distinct().shuffled()
     }
 
-    StudyHeader("Boşluk Doldurma", index, cases.size, correctCount, onBack) {
+    StudyHeader(uiText(appLanguage, "Cümleyi Tamamla"), index, cases.size, correctCount, onBack) {
         Text("Cümledeki boşluğu doğru seçenekle tamamla.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(14.dp))
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-            Text(case.sentence, Modifier.padding(20.dp), fontSize = 21.sp, lineHeight = 30.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(case.sentence, Modifier.padding(20.dp), fontSize = 21.sp, lineHeight = 30.sp)
         }
         Spacer(Modifier.height(18.dp))
         distractors.forEach { option ->
@@ -1332,10 +1358,239 @@ private fun MeaningStudyScreen(items: List<Lexeme>, germanToTurkish: Boolean, on
         selectedAnswer?.let {
             val ok = normalizeAnswer(it) == normalizeAnswer(case.answer)
             Text(if (ok) "Doğru ✓" else "Doğru cevap: ${case.answer}", color = if (ok) Success else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            Text("${wordDisplayTitle(case.lexeme)} — ${case.lexeme.meaning}", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))
-            Button(onClick = { index = (index + 1) % cases.size }, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)) { Text("Sonraki") }
+            Button(onClick = { index = (index + 1) % cases.size }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text(uiText(appLanguage, "Sonraki")) }
+        }
+    }
+}
+
+@Composable
+private fun ListenStudyScreen(items: List<Lexeme>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
+    if (items.isEmpty()) { EmptyStudyScreen(onBack); return }
+    val context = LocalContext.current
+    val speech = remember { GermanSpeechController(context) }
+    DisposableEffect(Unit) { onDispose { speech.shutdown() } }
+    var germanToTurkish by remember { mutableStateOf(true) }
+    var index by remember { mutableIntStateOf(0) }
+    var selectedAnswer by remember(index, germanToTurkish) { mutableStateOf<String?>(null) }
+    var correctCount by remember { mutableIntStateOf(0) }
+    val item = items[index % items.size]
+    val correct = if (germanToTurkish) item.meaning else wordDisplayTitle(item)
+    val options = remember(index, items, germanToTurkish) {
+        (items.filter { it.id != item.id }.shuffled().map { if (germanToTurkish) it.meaning else wordDisplayTitle(it) }.distinct().take(3) + correct).distinct().shuffled()
+    }
+
+    StudyHeader(uiText(appLanguage, "Dinle ve Bul"), index, items.size, correctCount, onBack) {
+        DirectionToggle(germanToTurkish) { germanToTurkish = !germanToTurkish }
+        Spacer(Modifier.height(14.dp))
+        Button(
+            onClick = { speech.speak(wordDisplayTitle(item), "listen-${item.id}-$index") },
+            modifier = Modifier.fillMaxWidth().height(70.dp),
+            shape = RoundedCornerShape(20.dp)
+        ) { Text("🔊  ${uiText(appLanguage, "Dinle")}", fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+        if (!germanToTurkish) {
+            Spacer(Modifier.height(8.dp))
+            Text(item.meaning, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.height(16.dp))
+        options.forEach { option ->
+            StudyAnswerButton(option, selectedAnswer, correct) {
+                if (selectedAnswer == null) {
+                    selectedAnswer = option
+                    val ok = normalizeAnswer(option) == normalizeAnswer(correct)
+                    if (ok) correctCount++
+                    onAnswered(item, ok)
+                }
+            }
+            Spacer(Modifier.height(9.dp))
+        }
+        selectedAnswer?.let {
+            Spacer(Modifier.height(4.dp))
+            Button(onClick = { index = (index + 1) % items.size }, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text(uiText(appLanguage, "Sonraki")) }
+        }
+    }
+}
+
+@Composable
+private fun SentenceBuildStudyScreen(items: List<Lexeme>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
+    val cases = remember(items) { items.filter { !it.exampleSentence.isNullOrBlank() } }
+    if (cases.isEmpty()) { EmptyStudyScreen(onBack, "Cümle kurma için örnek cümle bulunamadı."); return }
+    var index by remember { mutableIntStateOf(0) }
+    var correctCount by remember { mutableIntStateOf(0) }
+    val item = cases[index % cases.size]
+    val target = item.exampleSentence!!.trim()
+    val sourceWords = remember(index, target) { target.split(Regex("\\s+")).shuffled() }
+    var chosen by remember(index) { mutableStateOf<List<String>>(emptyList()) }
+    var checked by remember(index) { mutableStateOf<Boolean?>(null) }
+
+    StudyHeader(uiText(appLanguage, "Cümle Kur"), index, cases.size, correctCount, onBack) {
+        Text(item.meaning, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(12.dp))
+        ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+            Text(if (chosen.isEmpty()) "…" else chosen.joinToString(" "), Modifier.padding(18.dp), fontSize = 19.sp, lineHeight = 27.sp)
+        }
+        Spacer(Modifier.height(14.dp))
+        sourceWords.forEachIndexed { wordIndex, word ->
+            val usedCount = chosen.count { it == word }
+            val availableCountBefore = sourceWords.take(wordIndex + 1).count { it == word }
+            val enabled = usedCount < availableCountBefore
+            AssistChip(
+                onClick = { if (checked == null && enabled) chosen = chosen + word },
+                enabled = checked == null && enabled,
+                label = { Text(word) },
+                modifier = Modifier.padding(end = 5.dp, bottom = 5.dp)
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { chosen = emptyList(); checked = null }, modifier = Modifier.weight(1f)) { Text("Temizle") }
+            Button(
+                onClick = {
+                    val ok = normalizeAnswer(chosen.joinToString(" ")) == normalizeAnswer(target)
+                    checked = ok
+                    if (ok) correctCount++
+                    onAnswered(item, ok)
+                },
+                enabled = chosen.isNotEmpty() && checked == null,
+                modifier = Modifier.weight(1f)
+            ) { Text("Kontrol et") }
+        }
+        checked?.let { ok ->
+            Spacer(Modifier.height(10.dp))
+            Text(if (ok) "Doğru ✓" else "Doğru cümle: $target", color = if (ok) Success else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(10.dp))
+            Button(onClick = { index = (index + 1) % cases.size }, modifier = Modifier.fillMaxWidth()) { Text(uiText(appLanguage, "Sonraki")) }
+        }
+    }
+}
+
+@Composable
+private fun WritingStudyScreen(items: List<Lexeme>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
+    if (items.isEmpty()) { EmptyStudyScreen(onBack); return }
+    var germanToTurkish by remember { mutableStateOf(false) }
+    var index by remember { mutableIntStateOf(0) }
+    var answer by remember(index, germanToTurkish) { mutableStateOf("") }
+    var checked by remember(index, germanToTurkish) { mutableStateOf<Boolean?>(null) }
+    var correctCount by remember { mutableIntStateOf(0) }
+    val item = items[index % items.size]
+    val prompt = if (germanToTurkish) wordDisplayTitle(item) else item.meaning
+    val target = if (germanToTurkish) item.meaning else wordDisplayTitle(item)
+
+    StudyHeader(uiText(appLanguage, "Yazma"), index, items.size, correctCount, onBack) {
+        DirectionToggle(germanToTurkish) { germanToTurkish = !germanToTurkish }
+        Spacer(Modifier.height(14.dp))
+        Text(prompt, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(14.dp))
+        OutlinedTextField(
+            value = answer,
+            onValueChange = { if (checked == null) answer = it },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 2,
+            label = { Text("Cevabın") }
+        )
+        Spacer(Modifier.height(12.dp))
+        Button(
+            onClick = {
+                val ok = normalizeAnswer(answer) == normalizeAnswer(target)
+                checked = ok
+                if (ok) correctCount++
+                onAnswered(item, ok)
+            },
+            enabled = answer.isNotBlank() && checked == null,
+            modifier = Modifier.fillMaxWidth().height(52.dp)
+        ) { Text("Kontrol et") }
+        checked?.let { ok ->
+            Spacer(Modifier.height(10.dp))
+            Text(if (ok) "Doğru ✓" else "Doğru cevap: $target", color = if (ok) Success else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(10.dp))
+            Button(onClick = { index = (index + 1) % items.size }, modifier = Modifier.fillMaxWidth()) { Text(uiText(appLanguage, "Sonraki")) }
+        }
+    }
+}
+
+@Composable
+private fun QuickQuizScreen(items: List<Lexeme>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
+    if (items.isEmpty()) { EmptyStudyScreen(onBack); return }
+    var index by remember { mutableIntStateOf(0) }
+    var correctCount by remember { mutableIntStateOf(0) }
+    var secondsLeft by remember(index) { mutableIntStateOf(10) }
+    var selected by remember(index) { mutableStateOf<String?>(null) }
+    val item = items[index % items.size]
+    val correct = item.meaning
+    val options = remember(index, items) {
+        (items.filter { it.id != item.id }.shuffled().map { it.meaning }.distinct().take(3) + correct).distinct().shuffled()
+    }
+
+    LaunchedEffect(index, selected) {
+        if (selected != null) return@LaunchedEffect
+        secondsLeft = 10
+        while (secondsLeft > 0 && selected == null) {
+            delay(1000)
+            if (selected == null) secondsLeft--
+        }
+        if (secondsLeft == 0 && selected == null) {
+            selected = "__timeout__"
+            onAnswered(item, false)
+        }
+    }
+
+    Column(Modifier.fillMaxSize().background(Dark).statusBarsPadding().navigationBarsPadding()) {
+        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("‹", color = Color.White, fontSize = 32.sp, modifier = Modifier.clickable(onClick = onBack).padding(8.dp))
+            Text(uiText(appLanguage, "Hızlı Quiz"), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Surface(shape = CircleShape, color = Color.White.copy(alpha = .16f), modifier = Modifier.size(54.dp)) {
+                Box(contentAlignment = Alignment.Center) { Text("$secondsLeft", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+            }
+        }
+        LinearProgressIndicator(progress = { secondsLeft / 10f }, modifier = Modifier.fillMaxWidth())
+        Column(Modifier.weight(1f).fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Text("Soru ${index + 1} / ${items.size}", color = Color.White.copy(alpha = .75f))
+            Spacer(Modifier.height(14.dp))
+            Text(wordDisplayTitle(item), color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Spacer(Modifier.height(8.dp))
+            Text("Doğru: $correctCount", color = Color.White.copy(alpha = .75f))
+        }
+        val quizColors = listOf(Color(0xFFE94B4B), Color(0xFF3478D4), Color(0xFFE5AE2C), Color(0xFF2E9B62))
+        Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.chunked(2).forEachIndexed { rowIndex, row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEachIndexed { columnIndex, option ->
+                        val colorIndex = rowIndex * 2 + columnIndex
+                        Button(
+                            onClick = {
+                                if (selected == null) {
+                                    selected = option
+                                    val ok = normalizeAnswer(option) == normalizeAnswer(correct)
+                                    if (ok) correctCount++
+                                    onAnswered(item, ok)
+                                }
+                            },
+                            enabled = selected == null,
+                            modifier = Modifier.weight(1f).height(112.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = quizColors[colorIndex], disabledContainerColor = quizColors[colorIndex].copy(alpha = .70f), contentColor = Color.White, disabledContentColor = Color.White)
+                        ) {
+                            Text(option, fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        }
+                    }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+            if (selected != null) {
+                val ok = selected != "__timeout__" && normalizeAnswer(selected!!) == normalizeAnswer(correct)
+                Text(
+                    if (selected == "__timeout__") "Süre doldu • Doğru cevap: $correct" else if (ok) "Doğru ✓" else "Doğru cevap: $correct",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth().padding(6.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Button(
+                    onClick = { index = (index + 1) % items.size },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Dark)
+                ) { Text(uiText(appLanguage, "Sonraki"), fontWeight = FontWeight.Bold) }
+            }
         }
     }
 }
