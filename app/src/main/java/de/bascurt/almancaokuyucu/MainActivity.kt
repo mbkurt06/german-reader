@@ -169,6 +169,8 @@ private fun GermanReaderApp() {
                         }
                         page = target
                     },
+                    wordLearningState = { id -> userStore.wordProgress(id).learningState },
+                    onWordLearningState = { id, state -> userStore.setLearningState(id, state) },
                     onFullReset = ::fullReset
                 )
             }
@@ -191,6 +193,8 @@ private fun MainShell(
     studyItems: List<Lexeme>,
     onStudyItems: (List<Lexeme>) -> Unit,
     onChooseStudy: (AppPage) -> Unit,
+    wordLearningState: (String) -> String,
+    onWordLearningState: (String, String) -> Unit,
     onFullReset: () -> Unit
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -263,7 +267,7 @@ DrawerItem("⚙", uiText(lang, "Ayarlar"), page == AppPage.SETTINGS) { navigate(
             Box(Modifier.fillMaxSize().padding(padding)) {
                 when (page) {
                     AppPage.HOME -> ModernHomeScreen(lessons, saved, completedLessonIds, preferences, onLesson)
-                    AppPage.MY_WORDS -> MyWordsScreen(lessons, saved, onRemove, onStudyItems)
+                    AppPage.MY_WORDS -> MyWordsScreen(lessons, saved, onRemove, onStudyItems, wordLearningState, onWordLearningState)
                     AppPage.STUDY_MENU -> StudyMenuScreen(studyItems, onChooseStudy)
                     AppPage.PROFILE -> ProfileScreen(preferences, onPreferences, saved.size, completedLessonIds.size, stats)
                     AppPage.READ_STORIES -> ReadStoriesScreen(lessons, completedLessonIds, saved, onLesson)
@@ -568,7 +572,7 @@ private fun DictionaryBottomSheetContent(
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f).padding(end = 6.dp)) {
-                Text(dictionaryHeadword(item), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, lineHeight = 24.sp, maxLines = 2)
+                Text(dictionaryHeadword(item), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, lineHeight = 22.sp, maxLines = 2)
                 Spacer(Modifier.height(2.dp))
                 Text(dictionaryWordClass(item), color = Color(0xFF9ED7D6), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             }
@@ -1064,19 +1068,43 @@ private fun StoryScreen(
 }
 
 @Composable
-private fun MyWordsScreen(lessons: List<ReaderLesson>, saved: List<Lexeme>, onRemove: (Lexeme) -> Unit, onStudy: (List<Lexeme>) -> Unit) {
+private fun MyWordsScreen(
+    lessons: List<ReaderLesson>,
+    saved: List<Lexeme>,
+    onRemove: (Lexeme) -> Unit,
+    onStudy: (List<Lexeme>) -> Unit,
+    wordLearningState: (String) -> String,
+    onWordLearningState: (String, String) -> Unit
+) {
     var lessonFilters by remember { mutableStateOf(setOf<String>()) }
     var typeFilters by remember { mutableStateOf(setOf<String>()) }
+    var learningFilter by remember { mutableStateOf<String?>(null) }
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
+    var learningStateRevision by remember { mutableIntStateOf(0) }
     val lessonByLexeme = remember(lessons) { lessons.flatMap { lesson -> lesson.lexemes.map { it.id to lesson } }.toMap() }
     val availableLessons = lessons.filter { lesson -> saved.any { lesson.lexemes.any { lx -> lx.id == it.id } } }
     val wordTypes = listOf("Fiil", "İsim", "Sıfat", "Zarf", "Edat", "Bağlaç", "Zamir", "Artikel", "Belirleyici", "Parçacık", "Özel isim", "Diğer")
-    val filtered = saved.filter { item -> (lessonFilters.isEmpty() || lessonByLexeme[item.id]?.id in lessonFilters) && (typeFilters.isEmpty() || item.wordClass in typeFilters) }
+    val filtered = saved.filter { item ->
+        val state = wordLearningState(item.id)
+        (lessonFilters.isEmpty() || lessonByLexeme[item.id]?.id in lessonFilters) &&
+            (typeFilters.isEmpty() || item.wordClass in typeFilters) &&
+            (learningFilter == null || state == learningFilter)
+    }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
         Text("${saved.size} kayıtlı kelime / ifade", color = MaterialTheme.colorScheme.onSurfaceVariant)
         MultiFilterDropdown("Hikâye", lessonFilters, availableLessons.map { it.id to it.title }) { lessonFilters = it }
         MultiFilterDropdown("Kelime türü", typeFilters, wordTypes.map { it to it }) { typeFilters = it }
+        Text("Öğrenme durumu", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(null to "Tümü", "review" to "Tekrar", "hard" to "Zor", "learned" to "Öğrendim").forEach { (state, label) ->
+                FilterChip(
+                    selected = learningFilter == state,
+                    onClick = { learningFilter = state },
+                    label = { Text(label, fontSize = 11.sp) }
+                )
+            }
+        }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = {
                 selectedIds = if (filtered.isNotEmpty() && filtered.all { it.id in selectedIds }) selectedIds - filtered.map { it.id }.toSet() else selectedIds + filtered.map { it.id }
@@ -1088,8 +1116,21 @@ private fun MyWordsScreen(lessons: List<ReaderLesson>, saved: List<Lexeme>, onRe
             Text("Seçilenlerle çalış (${selectedIds.size})", fontWeight = FontWeight.SemiBold)
         }
         filtered.asReversed().forEach { item ->
-            SelectableWordCard(item, item.id in selectedIds, { selectedIds = if (item.id in selectedIds) selectedIds - item.id else selectedIds + item.id }, { onRemove(item); selectedIds = selectedIds - item.id }, lessonByLexeme[item.id]?.title)
+            val currentState = wordLearningState(item.id)
+            SelectableWordCard(
+                item = item,
+                selected = item.id in selectedIds,
+                onSelect = { selectedIds = if (item.id in selectedIds) selectedIds - item.id else selectedIds + item.id },
+                onRemove = { onRemove(item); selectedIds = selectedIds - item.id },
+                lessonTitle = lessonByLexeme[item.id]?.title,
+                learningState = currentState,
+                onLearningState = { state ->
+                    onWordLearningState(item.id, state)
+                    learningStateRevision++
+                }
+            )
         }
+        if (learningStateRevision < 0) Text("")
         if (filtered.isEmpty()) Text("Bu filtrelerde kayıtlı kelime yok.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp))
         Spacer(Modifier.height(30.dp))
     }
@@ -1193,10 +1234,10 @@ private fun SpacedReviewScreen(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { rate(ReviewRating.AGAIN) }, modifier = Modifier.weight(1f)) { Text("Tekrar") }
                 OutlinedButton(onClick = { rate(ReviewRating.HARD) }, modifier = Modifier.weight(1f)) { Text("Zor") }
-                Button(onClick = { rate(ReviewRating.GOOD) }, modifier = Modifier.weight(1f)) { Text("Biliyorum") }
+                Button(onClick = { rate(ReviewRating.GOOD) }, modifier = Modifier.weight(1f)) { Text("Öğrendim") }
             }
             Spacer(Modifier.height(8.dp))
-            Text("Tekrar: 10 dk  •  Zor: 1 gün  •  Biliyorum: artan aralık", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Tekrar: 10 dk  •  Zor: 1 gün  •  Öğrendim: 7 günden başlayarak artan aralık", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -1642,7 +1683,16 @@ private fun StepValueControl(
     }
 }
 
-@Composable private fun SelectableWordCard(item: Lexeme, selected: Boolean, onSelect: () -> Unit, onRemove: () -> Unit, lessonTitle: String?) {
+@Composable
+private fun SelectableWordCard(
+    item: Lexeme,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    onRemove: () -> Unit,
+    lessonTitle: String?,
+    learningState: String,
+    onLearningState: (String) -> Unit
+) {
     ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = if (selected) Turquoise.copy(alpha = .12f) else MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth().clickable(onClick = onSelect), shape = RoundedCornerShape(18.dp)) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
             Checkbox(checked = selected, onCheckedChange = { onSelect() })
@@ -1651,6 +1701,16 @@ private fun StepValueControl(
                 Text(item.meaning, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(listOfNotNull(lessonTitle, item.wordClass).joinToString(" • "), color = Turquoise, fontSize = 12.sp)
                 item.exampleSentence?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    listOf("review" to "Tekrar", "hard" to "Zor", "learned" to "Öğrendim").forEach { (state, label) ->
+                        FilterChip(
+                            selected = learningState == state,
+                            onClick = { onLearningState(state) },
+                            label = { Text(label, fontSize = 10.sp) }
+                        )
+                    }
+                }
             }
             Text("★", color = Turquoise, fontSize = 26.sp, modifier = Modifier.clickable(onClick = onRemove).padding(4.dp))
         }
