@@ -275,7 +275,7 @@ DrawerItem("⚙", uiText(lang, "Ayarlar"), page == AppPage.SETTINGS) { navigate(
                 when (page) {
                     AppPage.HOME -> ModernHomeScreen(lessons, saved, completedLessonIds, preferences, onLesson)
                     AppPage.MY_WORDS -> MyWordsScreen(lessons, saved, onRemove, onStudyItems, preferences.appLanguage, wordLearningState, onWordLearningState)
-                    AppPage.STUDY_MENU -> StudyMenuScreen(studyItems, preferences.appLanguage, onChooseStudy)
+                    AppPage.STUDY_MENU -> StudyMenuScreen(studyItems, preferences.appLanguage, preferences.translationLanguage, onChooseStudy)
                     AppPage.PROFILE -> ProfileScreen(preferences, onPreferences, saved.size, completedLessonIds.size, stats)
                     AppPage.READ_STORIES -> ReadStoriesScreen(lessons, completedLessonIds, saved, onLesson)
                     AppPage.STATS -> StatsScreen(saved, completedLessonIds, stats)
@@ -1167,7 +1167,8 @@ private fun MyWordsScreen(
 }
 
 @Composable
-private fun StudyMenuScreen(items: List<Lexeme>, appLanguage: String, onChoose: (AppPage) -> Unit) {
+private fun StudyMenuScreen(items: List<Lexeme>, appLanguage: String, translationLanguage: String, onChoose: (AppPage) -> Unit) {
+    val target = translationLanguage.uppercase()
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
         Card(colors = CardDefaults.cardColors(containerColor = Turquoise.copy(alpha = .12f)), shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp)) {
@@ -1177,11 +1178,11 @@ private fun StudyMenuScreen(items: List<Lexeme>, appLanguage: String, onChoose: 
                 Text("Yeni ve zorlandığın kelimeler daha sık; iyi bildiklerin daha seyrek gelir.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
-        StudyModeCard("1. ${uiText(appLanguage, "Kelime Anlamı")}", "Çoktan seçmeli anlam çalışması. İçeride DE ↔ TR yönünü istediğin anda değiştirebilirsin.") { onChoose(AppPage.STUDY_MEANING) }
+        StudyModeCard("1. ${uiText(appLanguage, "Kelime Anlamı")}", "Çoktan seçmeli anlam çalışması. İçeride DE ↔ $target yönünü istediğin anda değiştirebilirsin.") { onChoose(AppPage.STUDY_MEANING) }
         StudyModeCard("2. ${uiText(appLanguage, "Cümleyi Tamamla")}", "Hikâyedeki gerçek cümlede eksik kelime veya ifadeyi seçeneklerden bul.") { onChoose(AppPage.STUDY_FILL) }
-        StudyModeCard("3. ${uiText(appLanguage, "Dinle ve Bul")}", "Almanca kelimeyi dinle ve doğru anlamı bul. DE ↔ TR yönü değiştirilebilir.") { onChoose(AppPage.STUDY_LISTEN) }
+        StudyModeCard("3. ${uiText(appLanguage, "Dinle ve Bul")}", "Almanca kelimeyi dinle ve doğru anlamı bul. DE ↔ $target yönü değiştirilebilir.") { onChoose(AppPage.STUDY_LISTEN) }
         StudyModeCard("4. ${uiText(appLanguage, "Cümle Kur")}", "Hikâyedeki gerçek örnek cümlenin kelimelerini doğru sıraya diz.") { onChoose(AppPage.STUDY_SENTENCE_BUILD) }
-        StudyModeCard("5. ${uiText(appLanguage, "Yazma")}", "Gösterilen karşılığı klavyeyle yaz. DE ↔ TR yönü değiştirilebilir.") { onChoose(AppPage.STUDY_WRITE) }
+        StudyModeCard("5. ${uiText(appLanguage, "Yazma")}", "Gösterilen karşılığı klavyeyle yaz. DE ↔ $target yönü değiştirilebilir.") { onChoose(AppPage.STUDY_WRITE) }
         StudyModeCard("6. ${uiText(appLanguage, "Aralıklı Tekrar")}", "Tekrar zamanı gelen kayıtlı yapıları Again / Hard / Good / Easy mantığıyla değerlendir.") { onChoose(AppPage.STUDY_REVIEW) }
         StudyModeCard("7. ${uiText(appLanguage, "Hızlı Quiz")}", "10 saniyelik hızlı sorular; dört büyük renkli cevap alanından birine dokun.") { onChoose(AppPage.STUDY_QUICK) }
     }
