@@ -136,18 +136,19 @@ private fun GermanReaderApp() {
                     onPreferences = ::savePrefs,
                     onHome = { currentLesson = null }
                 )
-                page == AppPage.STUDY_MEANING -> MeaningStudyScreen(studyItems, prefs.appLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
-                page == AppPage.STUDY_FILL -> FillBlankStudyScreen(studyItems, SampleLessons.all, prefs.appLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
-                page == AppPage.STUDY_LISTEN -> ListenStudyScreen(studyItems, prefs.appLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
-                page == AppPage.STUDY_SENTENCE_BUILD -> SentenceBuildStudyScreen(studyItems, prefs.appLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
-                page == AppPage.STUDY_WRITE -> WritingStudyScreen(studyItems, prefs.appLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
+                page == AppPage.STUDY_MEANING -> MeaningStudyScreen(studyItems, prefs.appLanguage, prefs.translationLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
+                page == AppPage.STUDY_FILL -> FillBlankStudyScreen(studyItems, SampleLessons.all, prefs.appLanguage, prefs.translationLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
+                page == AppPage.STUDY_LISTEN -> ListenStudyScreen(studyItems, prefs.appLanguage, prefs.translationLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
+                page == AppPage.STUDY_SENTENCE_BUILD -> SentenceBuildStudyScreen(studyItems, prefs.appLanguage, prefs.translationLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
+                page == AppPage.STUDY_WRITE -> WritingStudyScreen(studyItems, prefs.appLanguage, prefs.translationLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
                 page == AppPage.STUDY_REVIEW -> SpacedReviewScreen(
                     items = studyItems,
                     appLanguage = prefs.appLanguage,
+                    translationLanguage = prefs.translationLanguage,
                     onBack = { page = AppPage.STUDY_MENU },
                     onRated = { item, rating -> userStore.recordReview(item.id, rating) }
                 )
-                page == AppPage.STUDY_QUICK -> QuickQuizScreen(studyItems, prefs.appLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
+                page == AppPage.STUDY_QUICK -> QuickQuizScreen(studyItems, prefs.appLanguage, prefs.translationLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
                 else -> MainShell(
                     page = page,
                     onPage = { target -> if (target == AppPage.STUDY_MENU) studyItems = adaptiveStudySet(); page = target },
@@ -1189,6 +1190,7 @@ private fun StudyMenuScreen(items: List<Lexeme>, appLanguage: String, onChoose: 
 private fun SpacedReviewScreen(
     items: List<Lexeme>,
     appLanguage: String,
+    translationLanguage: String,
     onBack: () -> Unit,
     onRated: (Lexeme, ReviewRating) -> Unit
 ) {
@@ -1278,7 +1280,7 @@ private fun ReviewRatingButton(label: String, modifier: Modifier, filled: Boolea
 }
 
 @Composable
-private fun MeaningStudyScreen(items: List<Lexeme>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
+private fun MeaningStudyScreen(items: List<Lexeme>, appLanguage: String, translationLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
     if (items.isEmpty()) { EmptyStudyScreen(onBack); return }
     var roundItems by remember(items) { mutableStateOf(items) }
     var germanToTurkish by remember { mutableStateOf(true) }
@@ -1320,7 +1322,7 @@ private fun MeaningStudyScreen(items: List<Lexeme>, appLanguage: String, onBack:
     }
 
     StudyHeader(uiText(appLanguage, "Kelime Anlamı"), index, roundItems.size, correctCount, onBack) {
-        DirectionToggle(germanToTurkish) { germanToTurkish = !germanToTurkish }
+        DirectionToggle(germanToTurkish, translationLanguage) { germanToTurkish = !germanToTurkish }
         Spacer(Modifier.height(12.dp))
         Text(if (germanToTurkish) "Bu Almanca ifade ne anlama geliyor?" else "Bu anlamın Almancası hangisi?", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(10.dp))
@@ -1352,14 +1354,15 @@ private fun MeaningStudyScreen(items: List<Lexeme>, appLanguage: String, onBack:
 }
 
 @Composable
-private fun DirectionToggle(germanToTurkish: Boolean, onToggle: () -> Unit) {
+private fun DirectionToggle(germanToTurkish: Boolean, translationLanguage: String, onToggle: () -> Unit) {
+    val target = translationLanguage.uppercase()
     OutlinedButton(onClick = onToggle, modifier = Modifier.fillMaxWidth().height(46.dp), shape = RoundedCornerShape(14.dp)) {
-        Text(if (germanToTurkish) "DE → TR   ⇄" else "TR → DE   ⇄", fontWeight = FontWeight.Bold)
+        Text(if (germanToTurkish) "DE → $target   ⇄" else "$target → DE   ⇄", fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
-private fun FillBlankStudyScreen(items: List<Lexeme>, lessons: List<ReaderLesson>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
+private fun FillBlankStudyScreen(items: List<Lexeme>, lessons: List<ReaderLesson>, appLanguage: String, translationLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
     val allCases = remember(items, lessons) { buildFillBlankCases(items, lessons).distinctBy { it.lexeme.id } }
     if (allCases.isEmpty()) { EmptyStudyScreen(onBack, "Bu çalışma turundaki kelimeler için hikâye içinde boşluk doldurma cümlesi bulunamadı."); return }
     var cases by remember(allCases) { mutableStateOf(allCases) }
@@ -1430,7 +1433,7 @@ private fun FillBlankStudyScreen(items: List<Lexeme>, lessons: List<ReaderLesson
 }
 
 @Composable
-private fun ListenStudyScreen(items: List<Lexeme>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
+private fun ListenStudyScreen(items: List<Lexeme>, appLanguage: String, translationLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
     if (items.isEmpty()) { EmptyStudyScreen(onBack); return }
     val context = LocalContext.current
     val speech = remember { GermanSpeechController(context) }
@@ -1473,7 +1476,7 @@ private fun ListenStudyScreen(items: List<Lexeme>, appLanguage: String, onBack: 
     val options = remember(index, roundItems, germanToTurkish) { buildFourOptions(item, roundItems, germanToTurkish) }
 
     StudyHeader(uiText(appLanguage, "Dinle ve Bul"), index, roundItems.size, correctCount, onBack) {
-        DirectionToggle(germanToTurkish) { germanToTurkish = !germanToTurkish }
+        DirectionToggle(germanToTurkish, translationLanguage) { germanToTurkish = !germanToTurkish }
         Spacer(Modifier.height(14.dp))
         Button(
             onClick = { speech.speak(wordDisplayTitle(item), "listen-${item.id}-$index") },
@@ -1506,7 +1509,7 @@ private fun ListenStudyScreen(items: List<Lexeme>, appLanguage: String, onBack: 
 }
 
 @Composable
-private fun SentenceBuildStudyScreen(items: List<Lexeme>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
+private fun SentenceBuildStudyScreen(items: List<Lexeme>, appLanguage: String, translationLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
     val allCases = remember(items) { items.filter { !it.exampleSentence.isNullOrBlank() }.distinctBy { it.id } }
     if (allCases.isEmpty()) { EmptyStudyScreen(onBack, "Cümle kurma için örnek cümle bulunamadı."); return }
     var cases by remember(allCases) { mutableStateOf(allCases) }
@@ -1591,7 +1594,7 @@ private fun SentenceBuildStudyScreen(items: List<Lexeme>, appLanguage: String, o
 }
 
 @Composable
-private fun WritingStudyScreen(items: List<Lexeme>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
+private fun WritingStudyScreen(items: List<Lexeme>, appLanguage: String, translationLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
     if (items.isEmpty()) { EmptyStudyScreen(onBack); return }
     var roundItems by remember(items) { mutableStateOf(items) }
     var germanToTurkish by remember { mutableStateOf(false) }
@@ -1632,7 +1635,7 @@ private fun WritingStudyScreen(items: List<Lexeme>, appLanguage: String, onBack:
     val target = if (germanToTurkish) item.meaning else wordDisplayTitle(item)
 
     StudyHeader(uiText(appLanguage, "Yazma"), index, roundItems.size, correctCount, onBack) {
-        DirectionToggle(germanToTurkish) { germanToTurkish = !germanToTurkish }
+        DirectionToggle(germanToTurkish, translationLanguage) { germanToTurkish = !germanToTurkish }
         Spacer(Modifier.height(14.dp))
         Text(prompt, fontSize = 25.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(14.dp))
@@ -1667,7 +1670,7 @@ private fun WritingStudyScreen(items: List<Lexeme>, appLanguage: String, onBack:
 }
 
 @Composable
-private fun QuickQuizScreen(items: List<Lexeme>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
+private fun QuickQuizScreen(items: List<Lexeme>, appLanguage: String, translationLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
     if (items.isEmpty()) { EmptyStudyScreen(onBack); return }
     var roundItems by remember(items) { mutableStateOf(items) }
     var index by remember(roundItems) { mutableIntStateOf(0) }
