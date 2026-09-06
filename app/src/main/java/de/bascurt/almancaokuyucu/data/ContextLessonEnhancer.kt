@@ -94,14 +94,15 @@ internal object ContextLessonEnhancer {
                     }
                     phrase.weakLink -> indices.forEach { index ->
                         val original = result[index].lexeme
+                        val alreadyHasExplicitPhrase = original.contextLinkId != null || original.contextLinkIds.isNotEmpty()
                         result[index] = result[index].copy(lexeme = original.copy(
                             id = "${original.id}-ctx-$sentenceIndex-$first-$index",
                             contextLinkId = original.contextLinkId ?: linkId,
                             contextLinkIds = (original.contextLinkIds + linkId).distinct(),
-                            contextUsage = phrase.explanation,
-                            dictionaryForm = phrase.dictionaryForm,
-                            contextExpression = usageExpression,
-                            contextMeaning = usageMeaning
+                            contextUsage = if (alreadyHasExplicitPhrase) original.contextUsage else phrase.explanation,
+                            dictionaryForm = if (alreadyHasExplicitPhrase) original.dictionaryForm else (phrase.dictionaryForm ?: original.dictionaryForm),
+                            contextExpression = if (alreadyHasExplicitPhrase) original.contextExpression else usageExpression,
+                            contextMeaning = if (alreadyHasExplicitPhrase) original.contextMeaning else usageMeaning
                         ))
                     }
                     else -> {
