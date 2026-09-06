@@ -1561,42 +1561,74 @@ private fun SentenceBuildStudyScreen(items: List<Lexeme>, appLanguage: String, t
 
     val item = cases[index]
     val target = item.exampleSentence!!.trim()
-    val sourceWords = remember(index, target, cases) { target.split(Regex("\\s+")).shuffled() }
+    val targetWords = remember(index, target, cases) { target.split(Regex("\\s+")) }
+    val sourceWords = remember(index, target, cases) { targetWords.shuffled() }
     var chosen by remember(index, cases) { mutableStateOf<List<String>>(emptyList()) }
     var checked by remember(index, cases) { mutableStateOf<Boolean?>(null) }
+    var hintCount by remember(index, cases) { mutableIntStateOf(0) }
 
     StudyHeader(uiText(appLanguage, "Cümle Kur"), index, cases.size, correctCount, onBack) {
-        Text(item.meaning, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(7.dp))
-        ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
-            Text(if (chosen.isEmpty()) "…" else chosen.joinToString(" "), Modifier.padding(18.dp), fontSize = 19.sp, lineHeight = 27.sp)
-        }
-        Spacer(Modifier.height(8.dp))
-        sourceWords.forEachIndexed { wordIndex, word ->
-            val usedCount = chosen.count { it == word }
-            val availableCountBefore = sourceWords.take(wordIndex + 1).count { it == word }
-            val enabled = usedCount < availableCountBefore
-            AssistChip(
-                onClick = { if (checked == null && enabled) chosen = chosen + word },
-                enabled = checked == null && enabled,
-                label = { Text(word) },
-                modifier = Modifier.padding(end = 5.dp, bottom = 5.dp)
+        Text(StudyMeaningCatalog.meaningFor(item, translationLanguage), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, maxLines = 2)
+        Spacer(Modifier.height(5.dp))
+        ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
+            Text(
+                if (chosen.isEmpty()) "…" else chosen.joinToString(" "),
+                Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                fontSize = 16.sp,
+                lineHeight = 20.sp,
+                maxLines = 3
             )
         }
-        Spacer(Modifier.height(7.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { chosen = emptyList(); checked = null }, modifier = Modifier.weight(1f)) { Text("Temizle") }
-            Button(
+        Spacer(Modifier.height(6.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            OutlinedButton(
                 onClick = {
-                    val ok = normalizeAnswer(chosen.joinToString(" ")) == normalizeAnswer(target)
-                    checked = ok
-                    if (ok) correctCount++ else wrongIds = wrongIds + item.id
-                    onAnswered(item, ok)
+                    if (checked == null && chosen.size < targetWords.size) {
+                        chosen = targetWords.take(chosen.size + 1)
+                        hintCount++
+                    }
                 },
-                enabled = chosen.isNotEmpty() && checked == null,
-                modifier = Modifier.weight(1f)
-            ) { Text("Kontrol et") }
+                enabled = checked == null && chosen.size < targetWords.size,
+                modifier = Modifier.weight(1f).height(40.dp)
+            ) { Text("💡 İpucu", fontSize = 13.sp) }
+            OutlinedButton(
+                onClick = { chosen = emptyList(); checked = null; hintCount = 0 },
+                modifier = Modifier.weight(1f).height(40.dp)
+            ) { Text("Temizle", fontSize = 13.sp) }
         }
+        if (hintCount > 0) {
+            Text("$hintCount ipucu kullanıldı", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+        }
+        Spacer(Modifier.height(5.dp))
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            maxItemsInEachRow = 4
+        ) {
+            sourceWords.forEachIndexed { wordIndex, word ->
+                val usedCount = chosen.count { it == word }
+                val occurrence = sourceWords.take(wordIndex + 1).count { it == word }
+                val enabled = usedCount < occurrence
+                AssistChip(
+                    onClick = { if (checked == null && enabled) chosen = chosen + word },
+                    enabled = checked == null && enabled,
+                    label = { Text(word, fontSize = 12.sp, maxLines = 1) },
+                    modifier = Modifier.height(34.dp)
+                )
+            }
+        }
+        Spacer(Modifier.height(5.dp))
+        Button(
+            onClick = {
+                val ok = normalizeAnswer(chosen.joinToString(" ")) == normalizeAnswer(target)
+                checked = ok
+                if (ok) correctCount++ else wrongIds = wrongIds + item.id
+                onAnswered(item, ok)
+            },
+            enabled = chosen.isNotEmpty() && checked == null,
+            modifier = Modifier.fillMaxWidth().height(42.dp)
+        ) { Text("Kontrol et") }
         checked?.let { ok ->
             Spacer(Modifier.height(6.dp))
             Text(if (ok) "Doğru ✓" else "Doğru cümle: $target", color = if (ok) Success else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
