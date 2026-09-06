@@ -558,7 +558,7 @@ private fun DictionaryBottomSheetContent(
     onSave: () -> Unit,
     onClose: () -> Unit
 ) {
-    val sheetHeight = (LocalConfiguration.current.screenHeightDp.dp * .48f).coerceIn(340.dp, 470.dp)
+    val sheetHeight = LocalConfiguration.current.screenHeightDp.dp * .30f
     Column(
         Modifier
             .fillMaxWidth()
