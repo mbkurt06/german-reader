@@ -1524,6 +1524,7 @@ private fun ListenStudyScreen(items: List<Lexeme>, appLanguage: String, translat
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun SentenceBuildStudyScreen(items: List<Lexeme>, appLanguage: String, translationLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
     val allCases = remember(items) { items.filter { !it.exampleSentence.isNullOrBlank() }.distinctBy { it.id } }
