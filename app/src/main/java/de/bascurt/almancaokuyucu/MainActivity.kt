@@ -36,6 +36,7 @@ import de.bascurt.almancaokuyucu.data.SampleLessons
 import de.bascurt.almancaokuyucu.data.SavedLexemeStore
 import de.bascurt.almancaokuyucu.data.ReviewRating
 import de.bascurt.almancaokuyucu.data.StoryTranslationCatalog
+import de.bascurt.almancaokuyucu.data.StudyMeaningCatalog
 import de.bascurt.almancaokuyucu.data.UserPreferences
 import de.bascurt.almancaokuyucu.data.UserPreferencesStore
 import de.bascurt.almancaokuyucu.model.*
@@ -1226,13 +1227,13 @@ private fun SpacedReviewScreen(
                     Spacer(Modifier.height(18.dp))
                     HorizontalDivider()
                     Spacer(Modifier.height(14.dp))
-                    Text(item.meaning, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+                    Text(StudyMeaningCatalog.meaningFor(item, translationLanguage), fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
                     dictionaryForms(item)?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     if (!item.contextExpression.isNullOrBlank() && !item.contextMeaning.isNullOrBlank()) {
                         Spacer(Modifier.height(12.dp))
                         Text("Cümle içindeki kullanım", color = Turquoise, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         Text(item.contextExpression, fontWeight = FontWeight.SemiBold)
-                        Text(item.contextMeaning, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(StudyMeaningCatalog.contextMeaningFor(item, translationLanguage) ?: item.contextMeaning.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     item.exampleSentence?.takeIf { it.isNotBlank() }?.let {
                         Spacer(Modifier.height(12.dp))
@@ -1316,9 +1317,9 @@ private fun MeaningStudyScreen(items: List<Lexeme>, appLanguage: String, transla
     }
 
     val item = roundItems[index]
-    val correct = if (germanToTurkish) item.meaning else wordDisplayTitle(item)
+    val correct = if (germanToTurkish) StudyMeaningCatalog.meaningFor(item, translationLanguage) else wordDisplayTitle(item)
     val options = remember(index, roundItems, germanToTurkish) {
-        buildFourOptions(item, roundItems, germanToTurkish)
+        buildFourOptions(item, roundItems, germanToTurkish, translationLanguage)
     }
 
     StudyHeader(uiText(appLanguage, "Kelime Anlamı"), index, roundItems.size, correctCount, onBack) {
@@ -1327,7 +1328,7 @@ private fun MeaningStudyScreen(items: List<Lexeme>, appLanguage: String, transla
         Text(if (germanToTurkish) "Bu Almanca ifade ne anlama geliyor?" else "Bu anlamın Almancası hangisi?", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(10.dp))
         ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-            Text(if (germanToTurkish) wordDisplayTitle(item) else item.meaning, Modifier.padding(20.dp), fontSize = 27.sp, fontWeight = FontWeight.Bold)
+            Text(if (germanToTurkish) wordDisplayTitle(item) else StudyMeaningCatalog.meaningFor(item, translationLanguage), Modifier.padding(20.dp), fontSize = 27.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(18.dp))
         options.forEachIndexed { optionIndex, option ->
@@ -1472,8 +1473,8 @@ private fun ListenStudyScreen(items: List<Lexeme>, appLanguage: String, translat
     }
 
     val item = roundItems[index]
-    val correct = if (germanToTurkish) item.meaning else wordDisplayTitle(item)
-    val options = remember(index, roundItems, germanToTurkish) { buildFourOptions(item, roundItems, germanToTurkish) }
+    val correct = if (germanToTurkish) StudyMeaningCatalog.meaningFor(item, translationLanguage) else wordDisplayTitle(item)
+    val options = remember(index, roundItems, germanToTurkish) { buildFourOptions(item, roundItems, germanToTurkish, translationLanguage) }
 
     StudyHeader(uiText(appLanguage, "Dinle ve Bul"), index, roundItems.size, correctCount, onBack) {
         DirectionToggle(germanToTurkish, translationLanguage) { germanToTurkish = !germanToTurkish }
@@ -1485,7 +1486,7 @@ private fun ListenStudyScreen(items: List<Lexeme>, appLanguage: String, translat
         ) { Text("🔊  ${uiText(appLanguage, "Dinle")}", fontSize = 20.sp, fontWeight = FontWeight.Bold) }
         if (!germanToTurkish) {
             Spacer(Modifier.height(8.dp))
-            Text(item.meaning, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text(StudyMeaningCatalog.meaningFor(item, translationLanguage), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(16.dp))
         options.forEachIndexed { optionIndex, option ->
@@ -1550,7 +1551,7 @@ private fun SentenceBuildStudyScreen(items: List<Lexeme>, appLanguage: String, t
     var checked by remember(index, cases) { mutableStateOf<Boolean?>(null) }
 
     StudyHeader(uiText(appLanguage, "Cümle Kur"), index, cases.size, correctCount, onBack) {
-        Text(item.meaning, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(StudyMeaningCatalog.meaningFor(item, translationLanguage), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(12.dp))
         ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
             Text(if (chosen.isEmpty()) "…" else chosen.joinToString(" "), Modifier.padding(18.dp), fontSize = 19.sp, lineHeight = 27.sp)
@@ -1631,8 +1632,8 @@ private fun WritingStudyScreen(items: List<Lexeme>, appLanguage: String, transla
     }
 
     val item = roundItems[index]
-    val prompt = if (germanToTurkish) wordDisplayTitle(item) else item.meaning
-    val target = if (germanToTurkish) item.meaning else wordDisplayTitle(item)
+    val prompt = if (germanToTurkish) wordDisplayTitle(item) else StudyMeaningCatalog.meaningFor(item, translationLanguage)
+    val target = if (germanToTurkish) StudyMeaningCatalog.meaningFor(item, translationLanguage) else wordDisplayTitle(item)
 
     StudyHeader(uiText(appLanguage, "Yazma"), index, roundItems.size, correctCount, onBack) {
         DirectionToggle(germanToTurkish, translationLanguage) { germanToTurkish = !germanToTurkish }
@@ -1706,8 +1707,8 @@ private fun QuickQuizScreen(items: List<Lexeme>, appLanguage: String, translatio
     }
 
     val item = roundItems[index]
-    val correct = item.meaning
-    val options = remember(index, roundItems) { buildFourOptions(item, roundItems, true) }
+    val correct = StudyMeaningCatalog.meaningFor(item, translationLanguage)
+    val options = remember(index, roundItems) { buildFourOptions(item, roundItems, true, translationLanguage) }
 
     LaunchedEffect(index, selected, roundItems) {
         if (selected != null) return@LaunchedEffect
@@ -1817,12 +1818,12 @@ private fun StudyFinishedScreen(
     }
 }
 
-private fun buildFourOptions(item: Lexeme, currentItems: List<Lexeme>, germanToTurkish: Boolean): List<String> {
-    val correct = if (germanToTurkish) item.meaning else wordDisplayTitle(item)
+private fun buildFourOptions(item: Lexeme, currentItems: List<Lexeme>, germanToTurkish: Boolean, translationLanguage: String): List<String> {
+    val correct = if (germanToTurkish) StudyMeaningCatalog.meaningFor(item, translationLanguage) else wordDisplayTitle(item)
     val pool = (currentItems + SampleLessons.all.flatMap { it.quizItems })
-        .distinctBy { "${wordDisplayTitle(it).lowercase()}|${it.meaning.lowercase()}" }
+        .distinctBy { "${wordDisplayTitle(it).lowercase()}|${StudyMeaningCatalog.meaningFor(it, translationLanguage).lowercase()}" }
         .filter { it.id != item.id }
-        .map { if (germanToTurkish) it.meaning else wordDisplayTitle(it) }
+        .map { if (germanToTurkish) StudyMeaningCatalog.meaningFor(it, translationLanguage) else wordDisplayTitle(it) }
         .filter { normalizeAnswer(it) != normalizeAnswer(correct) }
         .distinctBy { normalizeAnswer(it) }
         .shuffled()
@@ -2192,7 +2193,7 @@ private fun StepValueControl(
                 Row(Modifier.fillMaxWidth().padding(15.dp), verticalAlignment = Alignment.Top) {
                     Column(Modifier.weight(1f)) {
                         Text(wordDisplayTitle(item), fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                        Text(item.meaning, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(StudyMeaningCatalog.meaningFor(item, translationLanguage), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(item.wordClass, color = Turquoise, fontSize = 13.sp)
                         item.exampleSentence?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
@@ -2219,7 +2220,7 @@ private fun SelectableWordCard(
             Checkbox(checked = selected, onCheckedChange = { onSelect() })
             Column(Modifier.weight(1f).padding(start = 6.dp)) {
                 Text(wordDisplayTitle(item), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text(item.meaning, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(StudyMeaningCatalog.meaningFor(item, translationLanguage), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(listOfNotNull(lessonTitle, item.wordClass).joinToString(" • "), color = Turquoise, fontSize = 12.sp)
                 item.exampleSentence?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 Spacer(Modifier.height(8.dp))
