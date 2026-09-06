@@ -1065,7 +1065,7 @@ private fun StoryScreen(
         }
         answer?.let {
             Text(if (it == question.base) "Doğru ✓" else "Doğru cevap: ${question.base}", color = if (it == question.base) Success else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-            Button(onClick = { index = (index + 1) % questions.size }, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(15.dp)) { Text("Sonraki") }
+            Button(onClick = { index = (index + 1) % questions.size }, modifier = Modifier.fillMaxWidth().height(46.dp), shape = RoundedCornerShape(15.dp)) { Text("Sonraki") }
         }
     }
 }
@@ -1246,7 +1246,7 @@ private fun SpacedReviewScreen(
         }
         Spacer(Modifier.height(6.dp))
         if (!revealed) {
-            Button(onClick = { revealed = true }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Cevabı göster") }
+            Button(onClick = { revealed = true }, modifier = Modifier.fillMaxWidth().height(46.dp)) { Text("Cevabı göster") }
         } else {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 ReviewRatingButton(uiText(appLanguage, "Tekrar"), Modifier.weight(1f)) { rate(ReviewRating.AGAIN) }
@@ -1329,7 +1329,7 @@ private fun MeaningStudyScreen(items: List<Lexeme>, appLanguage: String, transla
         Text(if (germanToTurkish) "Bu Almanca ifade ne anlama geliyor?" else "Bu anlamın Almancası hangisi?", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(6.dp))
         ElevatedCard(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-            Text(if (germanToTurkish) wordDisplayTitle(item) else StudyMeaningCatalog.meaningFor(item, translationLanguage), Modifier.padding(20.dp), fontSize = 27.sp, fontWeight = FontWeight.Bold)
+            Text(if (germanToTurkish) wordDisplayTitle(item) else StudyMeaningCatalog.meaningFor(item, translationLanguage), Modifier.padding(horizontal = 14.dp, vertical = 8.dp), fontSize = 22.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(6.dp))
         options.forEachIndexed { optionIndex, option ->
@@ -1349,7 +1349,7 @@ private fun MeaningStudyScreen(items: List<Lexeme>, appLanguage: String, transla
             Spacer(Modifier.height(7.dp))
             Button(
                 onClick = { if (index == roundItems.lastIndex) finished = true else index++ },
-                modifier = Modifier.fillMaxWidth().height(52.dp)
+                modifier = Modifier.fillMaxWidth().height(46.dp)
             ) { Text(if (index == roundItems.lastIndex) "Sonucu gör" else uiText(appLanguage, "Sonraki")) }
         }
     }
@@ -1358,7 +1358,7 @@ private fun MeaningStudyScreen(items: List<Lexeme>, appLanguage: String, transla
 @Composable
 private fun DirectionToggle(germanToTurkish: Boolean, translationLanguage: String, onToggle: () -> Unit) {
     val target = translationLanguage.uppercase()
-    OutlinedButton(onClick = onToggle, modifier = Modifier.fillMaxWidth().height(46.dp), shape = RoundedCornerShape(14.dp)) {
+    OutlinedButton(onClick = onToggle, modifier = Modifier.fillMaxWidth().height(38.dp), shape = RoundedCornerShape(12.dp)) {
         Text(if (germanToTurkish) "DE → $target   ⇄" else "$target → DE   ⇄", fontWeight = FontWeight.Bold)
     }
 }
@@ -1408,7 +1408,7 @@ private fun FillBlankStudyScreen(items: List<Lexeme>, lessons: List<ReaderLesson
         Text("Cümledeki boşluğu doğru seçenekle tamamla.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(8.dp))
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-            Text(case.sentence, Modifier.padding(20.dp), fontSize = 21.sp, lineHeight = 30.sp)
+            Text(case.sentence, Modifier.padding(horizontal = 14.dp, vertical = 10.dp), fontSize = 17.sp, lineHeight = 22.sp, maxLines = 4)
         }
         Spacer(Modifier.height(6.dp))
         distractors.forEachIndexed { optionIndex, option ->
@@ -1428,7 +1428,7 @@ private fun FillBlankStudyScreen(items: List<Lexeme>, lessons: List<ReaderLesson
             Spacer(Modifier.height(7.dp))
             Button(
                 onClick = { if (index == cases.lastIndex) finished = true else index++ },
-                modifier = Modifier.fillMaxWidth().height(52.dp)
+                modifier = Modifier.fillMaxWidth().height(46.dp)
             ) { Text(if (index == cases.lastIndex) "Sonucu gör" else uiText(appLanguage, "Sonraki")) }
         }
     }
@@ -1482,9 +1482,9 @@ private fun ListenStudyScreen(items: List<Lexeme>, appLanguage: String, translat
         Spacer(Modifier.height(8.dp))
         Button(
             onClick = { speech.speak(wordDisplayTitle(item), "listen-${item.id}-$index") },
-            modifier = Modifier.fillMaxWidth().height(70.dp),
-            shape = RoundedCornerShape(20.dp)
-        ) { Text("🔊  ${uiText(appLanguage, "Dinle")}", fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            shape = RoundedCornerShape(14.dp)
+        ) { Text("🔊  ${uiText(appLanguage, "Dinle")}", fontSize = 17.sp, fontWeight = FontWeight.Bold) }
         if (!germanToTurkish) {
             Spacer(Modifier.height(8.dp))
             Text(StudyMeaningCatalog.meaningFor(item, translationLanguage), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
@@ -1504,7 +1504,7 @@ private fun ListenStudyScreen(items: List<Lexeme>, appLanguage: String, translat
         selectedAnswer?.let {
             Button(
                 onClick = { if (index == roundItems.lastIndex) finished = true else index++ },
-                modifier = Modifier.fillMaxWidth().height(50.dp)
+                modifier = Modifier.fillMaxWidth().height(46.dp)
             ) { Text(if (index == roundItems.lastIndex) "Sonucu gör" else uiText(appLanguage, "Sonraki")) }
         }
     }
@@ -1657,7 +1657,7 @@ private fun WritingStudyScreen(items: List<Lexeme>, appLanguage: String, transla
                 onAnswered(item, ok)
             },
             enabled = answer.isNotBlank() && checked == null,
-            modifier = Modifier.fillMaxWidth().height(52.dp)
+            modifier = Modifier.fillMaxWidth().height(46.dp)
         ) { Text("Kontrol et") }
         checked?.let { ok ->
             Spacer(Modifier.height(6.dp))
@@ -1777,7 +1777,7 @@ private fun QuickQuizScreen(items: List<Lexeme>, appLanguage: String, translatio
                 )
                 Button(
                     onClick = { if (index == roundItems.lastIndex) finished = true else index++ },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier.fillMaxWidth().height(46.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Dark)
                 ) { Text(if (index == roundItems.lastIndex) "Sonucu gör" else uiText(appLanguage, "Sonraki"), fontWeight = FontWeight.Bold) }
             }
@@ -1860,7 +1860,7 @@ private fun StudyAnswerButton(option: String, optionIndex: Int, selected: String
     Button(
         onClick = onClick,
         enabled = selected == null,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
         shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = shownColor,
@@ -1869,7 +1869,7 @@ private fun StudyAnswerButton(option: String, optionIndex: Int, selected: String
             disabledContentColor = Color.White
         )
     ) {
-        Text(option, Modifier.fillMaxWidth(), fontSize = 15.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold)
+        Text(option, Modifier.fillMaxWidth(), fontSize = 14.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -2127,7 +2127,7 @@ private fun LanguageDropdown(selected: String, appLanguage: String, onSelected: 
     )
     val selectedLabel = languages.firstOrNull { it.first == selected }?.second ?: "🇹🇷 Türkçe"
     Box(Modifier.fillMaxWidth()) {
-        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(14.dp)) {
+        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth().height(46.dp), shape = RoundedCornerShape(14.dp)) {
             Text(selectedLabel, Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Start)
             Text("▾")
         }
