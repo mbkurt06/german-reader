@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
@@ -557,9 +558,11 @@ private fun DictionaryBottomSheetContent(
     onSave: () -> Unit,
     onClose: () -> Unit
 ) {
+    val sheetHeight = (LocalConfiguration.current.screenHeightDp.dp * .48f).coerceIn(340.dp, 470.dp)
     Column(
         Modifier
             .fillMaxWidth()
+            .height(sheetHeight)
             .navigationBarsPadding()
             .padding(start = 22.dp, end = 14.dp, bottom = 24.dp)
     ) {
@@ -598,7 +601,7 @@ private fun DictionaryBottomSheetContent(
             ) { Text("🔊 ${uiText(appLanguage, "Cümleyi dinle")}", fontSize = 13.sp) }
         }
         Spacer(Modifier.height(8.dp))
-        Column(Modifier.fillMaxWidth().heightIn(max = 330.dp).verticalScroll(rememberScrollState()).padding(end = 8.dp)) {
+        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(end = 8.dp)) {
             Text(uiText(appLanguage, "Anlam"), color = Color(0xFF9ED7D6), fontSize = 12.sp)
             Text(item.meaning, color = Color.White, fontSize = 17.sp)
             dictionaryForms(item)?.let { forms ->

@@ -27,6 +27,17 @@ internal class GermanSpeechController(context: Context) : TextToSpeech.OnInitLis
         ready = status == TextToSpeech.SUCCESS &&
             languageStatus != TextToSpeech.LANG_MISSING_DATA &&
             languageStatus != TextToSpeech.LANG_NOT_SUPPORTED
+        if (ready) {
+            tts.voices.orEmpty()
+                .filter { voice ->
+                    voice.locale.language == Locale.GERMAN.language &&
+                        TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED !in voice.features
+                }
+                .maxWithOrNull(compareBy({ it.quality }, { -it.latency }))
+                ?.let { bestGermanVoice -> tts.voice = bestGermanVoice }
+            tts.setPitch(1.0f)
+            tts.setSpeechRate(.92f)
+        }
         tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String) = dispatch(SpeechEvent.Started(utteranceId))
             override fun onDone(utteranceId: String) = dispatch(SpeechEvent.Finished(utteranceId))
@@ -37,7 +48,6 @@ internal class GermanSpeechController(context: Context) : TextToSpeech.OnInitLis
 
     fun speak(text: String, utteranceId: String, flush: Boolean = true): Boolean {
         if (!ready || text.isBlank()) return false
-        engine?.setSpeechRate(.9f)
         return engine?.speak(
             text,
             if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD,
