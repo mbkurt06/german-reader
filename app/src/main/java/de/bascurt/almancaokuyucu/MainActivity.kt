@@ -119,6 +119,22 @@ private fun GermanReaderApp() {
         page = AppPage.HOME
     }
 
+    BackHandler(enabled = currentLesson != null || page != AppPage.HOME) {
+        when {
+            currentLesson != null -> currentLesson = null
+            page in setOf(
+                AppPage.STUDY_MEANING,
+                AppPage.STUDY_FILL,
+                AppPage.STUDY_LISTEN,
+                AppPage.STUDY_SENTENCE_BUILD,
+                AppPage.STUDY_WRITE,
+                AppPage.STUDY_REVIEW,
+                AppPage.STUDY_QUICK
+            ) -> page = AppPage.STUDY_MENU
+            else -> page = AppPage.HOME
+        }
+    }
+
     val systemDark = isSystemInDarkTheme()
     val darkTheme = when (prefs.themeMode) { "dark" -> true; "light" -> false; else -> systemDark }
     val colorScheme = if (darkTheme) darkColorScheme(primary = Turquoise, secondary = Turquoise) else lightColorScheme(primary = Turquoise, secondary = Turquoise, background = SoftBg)
@@ -221,8 +237,6 @@ private fun MainShell(
             onPage(target)
         }
     }
-
-    BackHandler(enabled = page == AppPage.SETTINGS) { navigate(AppPage.HOME) }
 
     val title = when (page) {
         AppPage.HOME -> uiText(lang, "Almanca Okuyucu")
