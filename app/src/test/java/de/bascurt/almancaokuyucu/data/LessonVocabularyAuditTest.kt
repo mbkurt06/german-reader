@@ -35,6 +35,16 @@ class LessonVocabularyAuditTest {
     }
 
     @Test
+    fun longestContextPhraseWinsForOverlappingSelections() {
+        val sentence = SampleLessons.all.first().sentences[3]
+        listOf("die", "ersten", "fragen", "von", "den", "gästen").forEach { word ->
+            val token = sentence.first { clean(it.text) == word }
+            assertEquals("die ersten Fragen von den Gästen", token.lexeme.contextExpression)
+            assertEquals("misafirlerin ilk soruları", token.lexeme.contextMeaning)
+        }
+    }
+
+    @Test
     fun everySentenceHasTranslationAndRealTokenMeanings() {
         SampleLessons.all.forEach { lesson ->
             assertEquals(
