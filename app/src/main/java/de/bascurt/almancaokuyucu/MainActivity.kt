@@ -503,8 +503,8 @@ private fun ReaderScreen(
             dragHandle = {
                 Box(
                     Modifier
-                        .padding(top = 10.dp, bottom = 6.dp)
-                        .size(width = 44.dp, height = 4.dp)
+                        .padding(top = 8.dp, bottom = 4.dp)
+                        .size(width = 42.dp, height = 4.dp)
                         .background(Color.White.copy(alpha = .42f), RoundedCornerShape(8.dp))
                 )
             }
@@ -564,65 +564,76 @@ private fun DictionaryBottomSheetContent(
             .fillMaxWidth()
             .height(sheetHeight)
             .navigationBarsPadding()
-            .padding(start = 22.dp, end = 14.dp, bottom = 24.dp)
+            .padding(start = 18.dp, end = 12.dp, bottom = 16.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-            Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                Text(dictionaryHeadword(item), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
-                Text(dictionaryWordClass(item), color = Color(0xFF9ED7D6), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Column(Modifier.weight(1f).padding(end = 6.dp)) {
+                Text(dictionaryHeadword(item), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, lineHeight = 24.sp, maxLines = 2)
+                Spacer(Modifier.height(2.dp))
+                Text(dictionaryWordClass(item), color = Color(0xFF9ED7D6), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             }
             Text(
                 if (isSaved) "★" else "☆",
                 color = Color.White,
-                fontSize = 31.sp,
-                modifier = Modifier.clickable(onClick = onSave).padding(horizontal = 8.dp, vertical = 2.dp)
+                fontSize = 27.sp,
+                modifier = Modifier.clickable(onClick = onSave).padding(horizontal = 7.dp, vertical = 0.dp)
             )
             Text(
                 "×",
                 color = Color.White,
-                fontSize = 31.sp,
-                modifier = Modifier.clickable(onClick = onClose).padding(horizontal = 8.dp, vertical = 2.dp)
+                fontSize = 27.sp,
+                modifier = Modifier.clickable(onClick = onClose).padding(horizontal = 7.dp, vertical = 0.dp)
             )
         }
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(
-                onClick = onSpeakWord,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .28f))
-            ) { Text("🔊 ${uiText(appLanguage, "Kelimeyi dinle")}", fontSize = 13.sp) }
-            OutlinedButton(
-                onClick = onSpeakSentence,
-                enabled = !item.exampleSentence.isNullOrBlank(),
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .28f))
-            ) { Text("🔊 ${uiText(appLanguage, "Cümleyi dinle")}", fontSize = 13.sp) }
+        Spacer(Modifier.height(5.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DictionaryAudioChip(label = "Kelime", onClick = onSpeakWord)
+            DictionaryAudioChip(label = "Cümle", enabled = !item.exampleSentence.isNullOrBlank(), onClick = onSpeakSentence)
         }
-        Spacer(Modifier.height(8.dp))
-        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(end = 8.dp)) {
-            Text(uiText(appLanguage, "Anlam"), color = Color(0xFF9ED7D6), fontSize = 12.sp)
-            Text(item.meaning, color = Color.White, fontSize = 17.sp)
+        Spacer(Modifier.height(6.dp))
+        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(end = 6.dp)) {
+            Text(uiText(appLanguage, "Anlam"), color = Color(0xFF9ED7D6), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text(item.meaning, color = Color.White, fontSize = 14.sp, lineHeight = 18.sp)
             dictionaryForms(item)?.let { forms ->
-                Spacer(Modifier.height(4.dp))
-                Text(forms, color = Color(0xFFD5E4E8), fontSize = 15.sp)
+                Spacer(Modifier.height(3.dp))
+                Text(forms, color = Color(0xFFD5E4E8), fontSize = 12.sp, lineHeight = 16.sp)
             }
             if (!item.contextExpression.isNullOrBlank() && !item.contextMeaning.isNullOrBlank()) {
-                Spacer(Modifier.height(12.dp))
-                HorizontalDivider(color = Color.White.copy(alpha = .16f))
-                Spacer(Modifier.height(10.dp))
-                Text(uiText(appLanguage, "Cümle içindeki kullanım"), color = Color(0xFF9ED7D6), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(3.dp))
-                Text(item.contextExpression, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                Text(item.contextMeaning, color = Color(0xFFD5E4E8), fontSize = 15.sp)
+                Spacer(Modifier.height(8.dp))
+                HorizontalDivider(color = Color.White.copy(alpha = .14f))
+                Spacer(Modifier.height(7.dp))
+                Text(uiText(appLanguage, "Cümle içindeki kullanım"), color = Color(0xFF9ED7D6), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(2.dp))
+                Text(item.contextExpression, color = Color.White, fontSize = 13.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold)
+                Text(item.contextMeaning, color = Color(0xFFD5E4E8), fontSize = 12.sp, lineHeight = 16.sp)
             }
             item.exampleSentence?.takeIf { it.isNotBlank() }?.let { example ->
-                Spacer(Modifier.height(12.dp))
-                Text(uiText(appLanguage, "Örnek cümle"), color = Color(0xFF9ED7D6), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                Text(example, color = Color(0xFFD5E4E8), fontSize = 15.sp)
+                Spacer(Modifier.height(8.dp))
+                Text(uiText(appLanguage, "Örnek cümle"), color = Color(0xFF9ED7D6), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text(example, color = Color(0xFFD5E4E8), fontSize = 12.sp, lineHeight = 16.sp)
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
+        }
+    }
+}
+
+@Composable
+private fun DictionaryAudioChip(label: String, enabled: Boolean = true, onClick: () -> Unit) {
+    val alpha = if (enabled) 1f else .45f
+    Surface(
+        color = Color.White.copy(alpha = if (enabled) .08f else .04f),
+        contentColor = Color.White.copy(alpha = alpha),
+        shape = RoundedCornerShape(18.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = if (enabled) .20f else .10f)),
+        modifier = Modifier.height(30.dp).clickable(enabled = enabled, onClick = onClick)
+    ) {
+        Row(
+            Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text("🔊", fontSize = 11.sp)
+            Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
         }
     }
 }
