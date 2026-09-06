@@ -28,7 +28,8 @@ data class Lexeme(
     val contextUsage: String? = null,
     val dictionaryForm: String? = null,
     val contextExpression: String? = null,
-    val contextMeaning: String? = null
+    val contextMeaning: String? = null,
+    val exampleSentence: String? = null
 )
 
 data class ReadingToken(val text: String, val lexeme: Lexeme)

@@ -46,6 +46,16 @@ class ExtendedLessonContentTest {
     }
 
     @Test
+    fun everySavedStructureCarriesItsFullExampleSentence() {
+        val sentenceText = "Sie fragt nach dem Frühstück."
+        val sentence = auditSentence(sentenceText)
+
+        sentence.forEach { token ->
+            assertEquals(sentenceText, token.lexeme.exampleSentence)
+        }
+    }
+
+    @Test
     fun verbPrepositionStrongLinksDoNotCaptureTheirObjects() {
         val lesson = SampleLessons.all.first()
 

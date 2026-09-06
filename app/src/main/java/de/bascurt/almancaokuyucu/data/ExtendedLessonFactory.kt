@@ -48,7 +48,9 @@ internal object ExtendedLessonFactory {
         applyReflexiveVerbs(lessonId, keys, lexemes)
         applyFixedGroups(lessonId, keys, lexemes)
 
-        return shownTokens.mapIndexed { index, shown -> ReadingToken(shown, lexemes[index]) }
+        return shownTokens.mapIndexed { index, shown ->
+            ReadingToken(shown, lexemes[index].copy(exampleSentence = sentence))
+        }
     }
 
     /**

@@ -34,8 +34,12 @@ data class WordStudyProgress(
     val correct: Int = 0,
     val wrong: Int = 0,
     val streak: Int = 0,
-    val lastSeen: Long = 0L
+    val lastSeen: Long = 0L,
+    val reviewIntervalDays: Int = 0,
+    val nextReviewAt: Long = 0L
 )
+
+enum class ReviewRating { AGAIN, HARD, GOOD }
 
 class UserPreferencesStore(context: Context) {
     private val prefs = context.getSharedPreferences("user_preferences", Context.MODE_PRIVATE)
@@ -124,7 +128,9 @@ class UserPreferencesStore(context: Context) {
         correct = prefs.getInt("word_${id}_correct", 0),
         wrong = prefs.getInt("word_${id}_wrong", 0),
         streak = prefs.getInt("word_${id}_streak", 0),
-        lastSeen = prefs.getLong("word_${id}_last_seen", 0L)
+        lastSeen = prefs.getLong("word_${id}_last_seen", 0L),
+        reviewIntervalDays = prefs.getInt("word_${id}_review_interval_days", 0),
+        nextReviewAt = prefs.getLong("word_${id}_next_review_at", 0L)
     )
 
     fun recordWordAnswer(id: String, correct: Boolean) {
@@ -135,6 +141,34 @@ class UserPreferencesStore(context: Context) {
             .putInt("word_${id}_streak", if (correct) current.streak + 1 else 0)
             .putLong("word_${id}_last_seen", System.currentTimeMillis())
             .apply()
+    }
+
+    fun recordReview(id: String, rating: ReviewRating) {
+        val current = wordProgress(id)
+        val now = System.currentTimeMillis()
+        val nextInterval = when (rating) {
+            ReviewRating.AGAIN -> 0
+            ReviewRating.HARD -> 1
+            ReviewRating.GOOD -> if (current.reviewIntervalDays <= 0) 1 else (current.reviewIntervalDays * 2).coerceAtMost(120)
+        }
+        val delay = when (rating) {
+            ReviewRating.AGAIN -> 10 * 60 * 1000L
+            else -> nextInterval * 24 * 60 * 60 * 1000L
+        }
+        prefs.edit()
+            .putInt("word_${id}_review_interval_days", nextInterval)
+            .putLong("word_${id}_next_review_at", now + delay)
+            .putLong("word_${id}_last_seen", now)
+            .putInt("word_${id}_streak", if (rating == ReviewRating.AGAIN) 0 else current.streak + 1)
+            .apply()
+    }
+
+    fun selectDueReviewItems(candidates: List<Lexeme>, limit: Int = 20): List<Lexeme> {
+        val now = System.currentTimeMillis()
+        return candidates.distinctBy { it.id }
+            .filter { wordProgress(it.id).nextReviewAt <= now }
+            .sortedWith(compareBy<Lexeme> { wordProgress(it.id).nextReviewAt }.thenBy { it.id })
+            .take(limit.coerceAtLeast(1))
     }
 
     fun selectStudyItems(candidates: List<Lexeme>, limit: Int = 10): List<Lexeme> {

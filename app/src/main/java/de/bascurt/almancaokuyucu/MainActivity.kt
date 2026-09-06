@@ -33,6 +33,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import de.bascurt.almancaokuyucu.data.LearningStats
 import de.bascurt.almancaokuyucu.data.SampleLessons
 import de.bascurt.almancaokuyucu.data.SavedLexemeStore
+import de.bascurt.almancaokuyucu.data.ReviewRating
 import de.bascurt.almancaokuyucu.data.StoryTranslationCatalog
 import de.bascurt.almancaokuyucu.data.UserPreferences
 import de.bascurt.almancaokuyucu.data.UserPreferencesStore
@@ -44,7 +45,7 @@ private val Dark = Color(0xFF102F3C)
 private val SoftBg = Color(0xFFF4F7F8)
 private val Success = Color(0xFF16845B)
 
-private enum class AppPage { HOME, MY_WORDS, STUDY_MENU, STUDY_DE_TR, STUDY_TR_DE, STUDY_FILL, PROFILE, READ_STORIES, STATS, SETTINGS, ABOUT }
+private enum class AppPage { HOME, MY_WORDS, STUDY_MENU, STUDY_DE_TR, STUDY_TR_DE, STUDY_FILL, STUDY_REVIEW, PROFILE, READ_STORIES, STATS, SETTINGS, ABOUT }
 private data class FillBlankCase(val lexeme: Lexeme, val sentence: String, val answer: String)
 
 class MainActivity : ComponentActivity() {
@@ -136,6 +137,11 @@ private fun GermanReaderApp() {
                 page == AppPage.STUDY_DE_TR -> MeaningStudyScreen(studyItems, true, { page = AppPage.STUDY_MENU }, ::recordAnswer)
                 page == AppPage.STUDY_TR_DE -> MeaningStudyScreen(studyItems, false, { page = AppPage.STUDY_MENU }, ::recordAnswer)
                 page == AppPage.STUDY_FILL -> FillBlankStudyScreen(studyItems, SampleLessons.all, { page = AppPage.STUDY_MENU }, ::recordAnswer)
+                page == AppPage.STUDY_REVIEW -> SpacedReviewScreen(
+                    items = studyItems,
+                    onBack = { page = AppPage.STUDY_MENU },
+                    onRated = { item, rating -> userStore.recordReview(item.id, rating) }
+                )
                 else -> MainShell(
                     page = page,
                     onPage = { target -> if (target == AppPage.STUDY_MENU) studyItems = adaptiveStudySet(); page = target },
@@ -154,7 +160,14 @@ private fun GermanReaderApp() {
                         stats = userStore.loadStats()
                         page = AppPage.STUDY_MENU
                     },
-                    onChooseStudy = { page = it },
+                    onChooseStudy = { target ->
+                        if (target == AppPage.STUDY_REVIEW) {
+                            studyItems = userStore.selectDueReviewItems(saved)
+                            userStore.recordStudySession()
+                            stats = userStore.loadStats()
+                        }
+                        page = target
+                    },
                     onFullReset = ::fullReset
                 )
             }
@@ -424,6 +437,8 @@ private fun ReaderScreen(
     onPreferences: (UserPreferences) -> Unit,
     onHome: () -> Unit
 ) {
+    val context = LocalContext.current
+    val speech = remember { GermanSpeechController(context) }
     var tab by remember(lesson.id) { mutableStateOf(ReaderTab.STORY) }
     var selected by remember(lesson.id) { mutableStateOf<Lexeme?>(null) }
     var selectedSentenceIndex by remember(lesson.id) { mutableIntStateOf(-1) }
@@ -434,6 +449,8 @@ private fun ReaderScreen(
         selected = null
         selectedSentenceIndex = -1
     }
+
+    DisposableEffect(Unit) { onDispose { speech.shutdown() } }
 
     BackHandler {
         if (selected != null) closeDictionary() else onHome()
@@ -457,6 +474,7 @@ private fun ReaderScreen(
                     highlightEnabled = preferences.highlightEnabled,
                     translationLanguage = preferences.translationLanguage,
                     appLanguage = preferences.appLanguage,
+                    speech = speech,
                     isCompleted = isCompleted,
                     onComplete = onComplete,
                     onTextSizeChange = { onPreferences(preferences.copy(storyTextSize = it)) },
@@ -494,6 +512,12 @@ private fun ReaderScreen(
                 item = selectedItem,
                 isSaved = isSaved,
                 appLanguage = preferences.appLanguage,
+                onSpeakWord = {
+                    speech.speak(selectedItem.infinitive ?: selectedItem.base, "word:${selectedItem.id}")
+                },
+                onSpeakSentence = {
+                    selectedItem.exampleSentence?.let { speech.speak(it, "sentence:${selectedItem.id}") }
+                },
                 onSave = { onToggleSaved(selectedItem) },
                 onClose = ::closeDictionary
             )
@@ -528,6 +552,8 @@ private fun DictionaryBottomSheetContent(
     item: Lexeme,
     isSaved: Boolean,
     appLanguage: String,
+    onSpeakWord: () -> Unit,
+    onSpeakSentence: () -> Unit,
     onSave: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -556,6 +582,22 @@ private fun DictionaryBottomSheetContent(
             )
         }
         Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedButton(
+                onClick = onSpeakWord,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .28f))
+            ) { Text("🔊 ${uiText(appLanguage, "Kelimeyi dinle")}", fontSize = 13.sp) }
+            OutlinedButton(
+                onClick = onSpeakSentence,
+                enabled = !item.exampleSentence.isNullOrBlank(),
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .28f))
+            ) { Text("🔊 ${uiText(appLanguage, "Cümleyi dinle")}", fontSize = 13.sp) }
+        }
+        Spacer(Modifier.height(8.dp))
         Column(Modifier.fillMaxWidth().heightIn(max = 330.dp).verticalScroll(rememberScrollState()).padding(end = 8.dp)) {
             Text(uiText(appLanguage, "Anlam"), color = Color(0xFF9ED7D6), fontSize = 12.sp)
             Text(item.meaning, color = Color.White, fontSize = 17.sp)
@@ -571,6 +613,11 @@ private fun DictionaryBottomSheetContent(
                 Spacer(Modifier.height(3.dp))
                 Text(item.contextExpression, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 Text(item.contextMeaning, color = Color(0xFFD5E4E8), fontSize = 15.sp)
+            }
+            item.exampleSentence?.takeIf { it.isNotBlank() }?.let { example ->
+                Spacer(Modifier.height(12.dp))
+                Text(uiText(appLanguage, "Örnek cümle"), color = Color(0xFF9ED7D6), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text(example, color = Color(0xFFD5E4E8), fontSize = 15.sp)
             }
             Spacer(Modifier.height(8.dp))
         }
@@ -615,6 +662,7 @@ private fun StoryScreen(
     highlightEnabled: Boolean,
     translationLanguage: String,
     appLanguage: String,
+    speech: GermanSpeechController,
     isCompleted: Boolean,
     onComplete: () -> Unit,
     onTextSizeChange: (Int) -> Unit,
@@ -624,11 +672,47 @@ private fun StoryScreen(
 ) {
     var showTranslations by remember(lesson.id) { mutableStateOf(false) }
     var showDisplayControls by remember(lesson.id) { mutableStateOf(false) }
+    var spokenSentenceIndex by remember(lesson.id) { mutableIntStateOf(-1) }
+    var storyPlaying by remember(lesson.id) { mutableStateOf(false) }
+    var storyPaused by remember(lesson.id) { mutableStateOf(false) }
     val translations = remember(lesson.id, translationLanguage) { StoryTranslationCatalog.translationsFor(lesson, translationLanguage) }
     val activity = LocalContext.current as? Activity
     val nightMode = readerThemeMode == "dark"
     val readerBackground = if (nightMode) Color(0xFF0B1014) else MaterialTheme.colorScheme.background
     val readerTextColor = if (nightMode) Color(0xFFE9EEF0) else MaterialTheme.colorScheme.onBackground
+
+    fun sentenceText(index: Int): String = lesson.sentences[index].joinToString(" ") { it.text }
+    fun playStory(fromIndex: Int) {
+        if (lesson.sentences.isEmpty()) return
+        val start = fromIndex.coerceIn(0, lesson.sentences.lastIndex)
+        speech.stop()
+        var queued = false
+        lesson.sentences.indices.drop(start).forEachIndexed { queueIndex, sentenceIndex ->
+            queued = speech.speak(sentenceText(sentenceIndex), "story:${lesson.id}:$sentenceIndex", flush = queueIndex == 0) || queued
+        }
+        if (queued) {
+            spokenSentenceIndex = start
+            storyPlaying = true
+            storyPaused = false
+        }
+    }
+
+    DisposableEffect(speech, lesson.id) {
+        speech.onEvent = { event ->
+            val prefix = "story:${lesson.id}:"
+            if (event.utteranceId.startsWith(prefix)) {
+                val index = event.utteranceId.removePrefix(prefix).toIntOrNull() ?: -1
+                when (event) {
+                    is SpeechEvent.Started -> { spokenSentenceIndex = index; storyPlaying = true }
+                    is SpeechEvent.Finished -> if (index == lesson.sentences.lastIndex) {
+                        storyPlaying = false; storyPaused = false; spokenSentenceIndex = -1
+                    }
+                    is SpeechEvent.Failed -> { storyPlaying = false; storyPaused = false }
+                }
+            }
+        }
+        onDispose { speech.stop(); speech.onEvent = null }
+    }
 
     DisposableEffect(activity, brightness) {
         val window = activity?.window
@@ -649,6 +733,7 @@ private fun StoryScreen(
 
     Column(Modifier.fillMaxSize().background(readerBackground)) {
         Surface(color = if (nightMode) Color(0xFF141C21) else MaterialTheme.colorScheme.surface, tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
+            Column {
             Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                 Surface(color = levelColor(lesson.level), shape = RoundedCornerShape(10.dp)) {
                     Text(lesson.level, Modifier.padding(horizontal = 8.dp, vertical = 5.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF203038))
@@ -682,6 +767,28 @@ private fun StoryScreen(
                     Text(if (showTranslations) uiText(appLanguage, "Çeviriyi Gizle") else uiText(appLanguage, "Çeviri"), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f))
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (spokenSentenceIndex >= 0) "${uiText(appLanguage, "Cümle")} ${spokenSentenceIndex + 1}/${lesson.sentences.size}" else uiText(appLanguage, "Hikâyeyi sesli oku"),
+                    modifier = Modifier.weight(1f),
+                    fontSize = 13.sp,
+                    color = if (nightMode) Color(0xFFD5E4E8) else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(onClick = {
+                    if (storyPlaying) {
+                        speech.stop(); storyPlaying = false; storyPaused = true
+                    } else {
+                        playStory(if (storyPaused && spokenSentenceIndex >= 0) spokenSentenceIndex else 0)
+                    }
+                }) { Text(if (storyPlaying) "Ⅱ ${uiText(appLanguage, "Duraklat")}" else "▶ ${uiText(appLanguage, "Dinle")}") }
+                if (storyPlaying || storyPaused) {
+                    TextButton(onClick = {
+                        speech.stop(); storyPlaying = false; storyPaused = false; spokenSentenceIndex = -1
+                    }) { Text("■ ${uiText(appLanguage, "Durdur")}") }
+                }
+            }
+            }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 110.dp)) {
             lesson.sentences.forEachIndexed { sentenceIndex, sentence ->
@@ -699,12 +806,13 @@ private fun StoryScreen(
                             addAll(token.lexeme.contextLinkIds)
                         }
                         val linked = highlightEnabled && sameSentence && !active && selectedContextLinks.isNotEmpty() && selectedContextLinks.any { it in tokenContextLinks }
+                        val beingRead = sentenceIndex == spokenSentenceIndex
                         Text(
                             token.text,
                             fontSize = textSize.sp,
                             lineHeight = (textSize + 10).sp,
                             color = if (active) Color.White else readerTextColor,
-                            modifier = Modifier.background(when { active -> Turquoise; linked -> Turquoise.copy(alpha = .46f); else -> Color.Transparent }, RoundedCornerShape(7.dp))
+                            modifier = Modifier.background(when { active -> Turquoise; linked -> Turquoise.copy(alpha = .46f); beingRead -> Turquoise.copy(alpha = .16f); else -> Color.Transparent }, RoundedCornerShape(7.dp))
                                 .clickable { onSelect(sentenceIndex, token.lexeme) }
                                 .padding(horizontal = 2.dp, vertical = 2.dp)
                         )
@@ -1006,6 +1114,76 @@ private fun MyWordsScreen(lessons: List<ReaderLesson>, saved: List<Lexeme>, onRe
         StudyModeCard("1. Almanca → Türkçe", "Almanca kelime veya ifadeyi gör, doğru Türkçe anlamını seçeneklerden bul.") { onChoose(AppPage.STUDY_DE_TR) }
         StudyModeCard("2. Türkçe → Almanca", "Türkçe anlamı gör, doğru Almanca kelime veya ifadeyi seçeneklerden bul.") { onChoose(AppPage.STUDY_TR_DE) }
         StudyModeCard("3. Boşluk Doldurma", "Hikâyedeki gerçek cümlede eksik kelime veya ifadeyi seçeneklerden bul.") { onChoose(AppPage.STUDY_FILL) }
+        StudyModeCard("4. Aralıklı Tekrar", "Kaydettiğin yapıları örnek cümleleriyle tekrar et; bildiklerin daha uzun aralıklarla geri gelir.") { onChoose(AppPage.STUDY_REVIEW) }
+    }
+}
+
+@Composable
+private fun SpacedReviewScreen(
+    items: List<Lexeme>,
+    onBack: () -> Unit,
+    onRated: (Lexeme, ReviewRating) -> Unit
+) {
+    if (items.isEmpty()) {
+        EmptyStudyScreen(onBack, "Şu anda tekrar zamanı gelen kayıtlı yapı yok. Hikâyeden yeni kelimeler kaydedebilir veya daha sonra tekrar kontrol edebilirsin.")
+        return
+    }
+    var index by remember(items) { mutableIntStateOf(0) }
+    var revealed by remember(index) { mutableStateOf(false) }
+    var finished by remember(items) { mutableStateOf(false) }
+    if (finished) {
+        Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Text("✓", color = Success, fontSize = 54.sp)
+            Text("Bugünkü tekrar tamamlandı", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(18.dp))
+            Button(onClick = onBack) { Text("Çalışma seçeneklerine dön") }
+        }
+        return
+    }
+    val item = items[index]
+    fun rate(rating: ReviewRating) {
+        onRated(item, rating)
+        if (index == items.lastIndex) finished = true else index++
+    }
+    StudyHeader("Aralıklı Tekrar", index, items.size, 0, onBack) {
+        Text("Yapının anlamını ve kullanımını hatırlamaya çalış.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(14.dp))
+        ElevatedCard(shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.fillMaxWidth().padding(22.dp)) {
+                Text(dictionaryHeadword(item), fontSize = 27.sp, fontWeight = FontWeight.Bold)
+                Text(dictionaryWordClass(item), color = Turquoise, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                if (revealed) {
+                    Spacer(Modifier.height(18.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(14.dp))
+                    Text(item.meaning, fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+                    dictionaryForms(item)?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    if (!item.contextExpression.isNullOrBlank() && !item.contextMeaning.isNullOrBlank()) {
+                        Spacer(Modifier.height(12.dp))
+                        Text("Cümle içindeki kullanım", color = Turquoise, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(item.contextExpression, fontWeight = FontWeight.SemiBold)
+                        Text(item.contextMeaning, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    item.exampleSentence?.takeIf { it.isNotBlank() }?.let {
+                        Spacer(Modifier.height(12.dp))
+                        Text("Örnek cümle", color = Turquoise, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+        if (!revealed) {
+            Button(onClick = { revealed = true }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Cevabı göster") }
+        } else {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { rate(ReviewRating.AGAIN) }, modifier = Modifier.weight(1f)) { Text("Tekrar") }
+                OutlinedButton(onClick = { rate(ReviewRating.HARD) }, modifier = Modifier.weight(1f)) { Text("Zor") }
+                Button(onClick = { rate(ReviewRating.GOOD) }, modifier = Modifier.weight(1f)) { Text("Biliyorum") }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text("Tekrar: 10 dk  •  Zor: 1 gün  •  Biliyorum: artan aralık", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -1441,6 +1619,7 @@ private fun StepValueControl(
                         Text(wordDisplayTitle(item), fontSize = 19.sp, fontWeight = FontWeight.Bold)
                         Text(item.meaning, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(item.wordClass, color = Turquoise, fontSize = 13.sp)
+                        item.exampleSentence?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
                     Text("★", color = Turquoise, fontSize = 27.sp, modifier = Modifier.clickable { onRemove(item) }.padding(5.dp))
                 }
@@ -1457,6 +1636,7 @@ private fun StepValueControl(
                 Text(wordDisplayTitle(item), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text(item.meaning, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(listOfNotNull(lessonTitle, item.wordClass).joinToString(" • "), color = Turquoise, fontSize = 12.sp)
+                item.exampleSentence?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
             Text("★", color = Turquoise, fontSize = 26.sp, modifier = Modifier.clickable(onClick = onRemove).padding(4.dp))
         }
