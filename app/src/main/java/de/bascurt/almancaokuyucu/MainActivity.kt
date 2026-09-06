@@ -1552,7 +1552,7 @@ private fun SentenceBuildStudyScreen(items: List<Lexeme>, appLanguage: String, t
     var checked by remember(index, cases) { mutableStateOf<Boolean?>(null) }
 
     StudyHeader(uiText(appLanguage, "Cümle Kur"), index, cases.size, correctCount, onBack) {
-        Text(StudyMeaningCatalog.meaningFor(item, translationLanguage), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(item.meaning, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(12.dp))
         ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
             Text(if (chosen.isEmpty()) "…" else chosen.joinToString(" "), Modifier.padding(18.dp), fontSize = 19.sp, lineHeight = 27.sp)
@@ -2194,7 +2194,7 @@ private fun StepValueControl(
                 Row(Modifier.fillMaxWidth().padding(15.dp), verticalAlignment = Alignment.Top) {
                     Column(Modifier.weight(1f)) {
                         Text(wordDisplayTitle(item), fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                        Text(StudyMeaningCatalog.meaningFor(item, translationLanguage), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(item.meaning, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(item.wordClass, color = Turquoise, fontSize = 13.sp)
                         item.exampleSentence?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
@@ -2221,7 +2221,7 @@ private fun SelectableWordCard(
             Checkbox(checked = selected, onCheckedChange = { onSelect() })
             Column(Modifier.weight(1f).padding(start = 6.dp)) {
                 Text(wordDisplayTitle(item), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text(StudyMeaningCatalog.meaningFor(item, translationLanguage), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(item.meaning, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(listOfNotNull(lessonTitle, item.wordClass).joinToString(" • "), color = Turquoise, fontSize = 12.sp)
                 item.exampleSentence?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 Spacer(Modifier.height(8.dp))
