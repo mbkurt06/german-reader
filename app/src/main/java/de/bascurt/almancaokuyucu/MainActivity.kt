@@ -10,6 +10,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -20,6 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -1572,14 +1575,66 @@ private fun SentenceBuildStudyScreen(items: List<Lexeme>, appLanguage: String, t
         Text(StudyMeaningCatalog.meaningFor(item, translationLanguage), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, maxLines = 2)
         Spacer(Modifier.height(5.dp))
         ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
-            Text(
-                if (chosen.isEmpty()) "…" else chosen.joinToString(" "),
-                Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-                fontSize = 16.sp,
-                lineHeight = 20.sp,
-                maxLines = 3
-            )
+            if (chosen.isEmpty()) {
+                Text(
+                    "…",
+                    Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    fontSize = 16.sp
+                )
+            } else {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 8.dp, vertical = 7.dp),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    chosen.forEachIndexed { chosenIndex, word ->
+                        var dragX by remember(index, chosenIndex, chosen) { mutableStateOf(0f) }
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = Turquoise.copy(alpha = .14f),
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier
+                                .height(34.dp)
+                                .pointerInput(index, chosenIndex, chosen) {
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = { dragX = 0f },
+                                        onDragCancel = { dragX = 0f },
+                                        onDragEnd = { dragX = 0f },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            dragX += dragAmount.x
+                                            val threshold = 34.dp.toPx()
+                                            when {
+                                                dragX > threshold && chosenIndex < chosen.lastIndex -> {
+                                                    val updated = chosen.toMutableList()
+                                                    val moving = updated.removeAt(chosenIndex)
+                                                    updated.add(chosenIndex + 1, moving)
+                                                    chosen = updated
+                                                    dragX = 0f
+                                                }
+                                                dragX < -threshold && chosenIndex > 0 -> {
+                                                    val updated = chosen.toMutableList()
+                                                    val moving = updated.removeAt(chosenIndex)
+                                                    updated.add(chosenIndex - 1, moving)
+                                                    chosen = updated
+                                                    dragX = 0f
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                        ) {
+                            Box(Modifier.padding(horizontal = 9.dp), contentAlignment = Alignment.Center) {
+                                Text(word, fontSize = 12.sp, maxLines = 1)
+                            }
+                        }
+                    }
+                }
+            }
         }
+        Text("Kelimeyi uzun basıp sağa/sola sürükleyerek sırasını değiştirebilirsin.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
         Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             OutlinedButton(
