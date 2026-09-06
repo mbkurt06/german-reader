@@ -40,7 +40,7 @@ data class WordStudyProgress(
     val learningState: String = "review"
 )
 
-enum class ReviewRating { AGAIN, HARD, GOOD }
+enum class ReviewRating { AGAIN, HARD, GOOD, EASY }
 
 class UserPreferencesStore(context: Context) {
     private val prefs = context.getSharedPreferences("user_preferences", Context.MODE_PRIVATE)
@@ -132,7 +132,7 @@ class UserPreferencesStore(context: Context) {
         lastSeen = prefs.getLong("word_${id}_last_seen", 0L),
         reviewIntervalDays = prefs.getInt("word_${id}_review_interval_days", 0),
         nextReviewAt = prefs.getLong("word_${id}_next_review_at", 0L),
-        learningState = prefs.getString("word_${id}_learning_state", "review") ?: "review"
+        learningState = prefs.getString("word_${id}_learning_state", "again") ?: "again"
     )
 
     fun recordWordAnswer(id: String, correct: Boolean) {
@@ -151,16 +151,18 @@ class UserPreferencesStore(context: Context) {
         val nextInterval = when (rating) {
             ReviewRating.AGAIN -> 0
             ReviewRating.HARD -> 1
-            ReviewRating.GOOD -> if (current.learningState != "learned" || current.reviewIntervalDays < 7) 7 else (current.reviewIntervalDays * 2).coerceAtMost(120)
+            ReviewRating.GOOD -> if (current.reviewIntervalDays < 3) 3 else (current.reviewIntervalDays * 2).coerceAtMost(120)
+            ReviewRating.EASY -> if (current.reviewIntervalDays < 7) 7 else (current.reviewIntervalDays * 3).coerceAtMost(120)
         }
         val delay = when (rating) {
             ReviewRating.AGAIN -> 10 * 60 * 1000L
             else -> nextInterval * 24 * 60 * 60 * 1000L
         }
         val learningState = when (rating) {
-            ReviewRating.AGAIN -> "review"
+            ReviewRating.AGAIN -> "again"
             ReviewRating.HARD -> "hard"
-            ReviewRating.GOOD -> "learned"
+            ReviewRating.GOOD -> "good"
+            ReviewRating.EASY -> "easy"
         }
         prefs.edit()
             .putInt("word_${id}_review_interval_days", nextInterval)
@@ -174,19 +176,21 @@ class UserPreferencesStore(context: Context) {
     fun setLearningState(id: String, state: String) {
         val normalized = when (state) {
             "hard" -> "hard"
-            "learned" -> "learned"
-            else -> "review"
+            "good" -> "good"
+            "easy" -> "easy"
+            else -> "again"
         }
         val current = wordProgress(id)
         val now = System.currentTimeMillis()
         val intervalDays = when (normalized) {
             "hard" -> 1
-            "learned" -> current.reviewIntervalDays.coerceAtLeast(7)
+            "good" -> current.reviewIntervalDays.coerceAtLeast(3)
+            "easy" -> current.reviewIntervalDays.coerceAtLeast(7)
             else -> 0
         }
         val nextReviewAt = when (normalized) {
             "hard" -> now + 24 * 60 * 60 * 1000L
-            "learned" -> now + intervalDays * 24 * 60 * 60 * 1000L
+            "good", "easy" -> now + intervalDays * 24 * 60 * 60 * 1000L
             else -> now + 10 * 60 * 1000L
         }
         prefs.edit()
@@ -217,9 +221,10 @@ class UserPreferencesStore(context: Context) {
                 val accuracyPenalty = if (attempts == 0) 0.0 else (progress.correct.toDouble() / attempts) * 20.0
                 val streakPenalty = progress.streak * 12.0
                 val stateBonus = when (progress.learningState) {
-                    "review" -> 350.0
+                    "again", "review" -> 350.0
                     "hard" -> 180.0
-                    "learned" -> -220.0
+                    "good" -> -80.0
+                    "easy", "learned" -> -220.0
                     else -> 0.0
                 }
                 val ageHours = if (progress.lastSeen == 0L) 72.0 else ((now - progress.lastSeen).coerceAtLeast(0L) / 3_600_000.0).coerceAtMost(72.0)
