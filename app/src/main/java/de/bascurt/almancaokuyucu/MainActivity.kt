@@ -39,6 +39,7 @@ import de.bascurt.almancaokuyucu.data.StoryTranslationCatalog
 import de.bascurt.almancaokuyucu.data.UserPreferences
 import de.bascurt.almancaokuyucu.data.UserPreferencesStore
 import de.bascurt.almancaokuyucu.model.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private val Turquoise = Color(0xFF1FA7A5)
@@ -46,7 +47,7 @@ private val Dark = Color(0xFF102F3C)
 private val SoftBg = Color(0xFFF4F7F8)
 private val Success = Color(0xFF16845B)
 
-private enum class AppPage { HOME, MY_WORDS, STUDY_MENU, STUDY_DE_TR, STUDY_TR_DE, STUDY_FILL, STUDY_REVIEW, PROFILE, READ_STORIES, STATS, SETTINGS, ABOUT }
+private enum class AppPage { HOME, MY_WORDS, STUDY_MENU, STUDY_MEANING, STUDY_FILL, STUDY_LISTEN, STUDY_SENTENCE_BUILD, STUDY_WRITE, STUDY_REVIEW, STUDY_QUICK, PROFILE, READ_STORIES, STATS, SETTINGS, ABOUT }
 private data class FillBlankCase(val lexeme: Lexeme, val sentence: String, val answer: String)
 
 class MainActivity : ComponentActivity() {
@@ -135,14 +136,18 @@ private fun GermanReaderApp() {
                     onPreferences = ::savePrefs,
                     onHome = { currentLesson = null }
                 )
-                page == AppPage.STUDY_DE_TR -> MeaningStudyScreen(studyItems, true, { page = AppPage.STUDY_MENU }, ::recordAnswer)
-                page == AppPage.STUDY_TR_DE -> MeaningStudyScreen(studyItems, false, { page = AppPage.STUDY_MENU }, ::recordAnswer)
-                page == AppPage.STUDY_FILL -> FillBlankStudyScreen(studyItems, SampleLessons.all, { page = AppPage.STUDY_MENU }, ::recordAnswer)
+                page == AppPage.STUDY_MEANING -> MeaningStudyScreen(studyItems, prefs.appLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
+                page == AppPage.STUDY_FILL -> FillBlankStudyScreen(studyItems, SampleLessons.all, prefs.appLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
+                page == AppPage.STUDY_LISTEN -> ListenStudyScreen(studyItems, prefs.appLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
+                page == AppPage.STUDY_SENTENCE_BUILD -> SentenceBuildStudyScreen(studyItems, prefs.appLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
+                page == AppPage.STUDY_WRITE -> WritingStudyScreen(studyItems, prefs.appLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
                 page == AppPage.STUDY_REVIEW -> SpacedReviewScreen(
                     items = studyItems,
+                    appLanguage = prefs.appLanguage,
                     onBack = { page = AppPage.STUDY_MENU },
                     onRated = { item, rating -> userStore.recordReview(item.id, rating) }
                 )
+                page == AppPage.STUDY_QUICK -> QuickQuizScreen(studyItems, prefs.appLanguage, { page = AppPage.STUDY_MENU }, ::recordAnswer)
                 else -> MainShell(
                     page = page,
                     onPage = { target -> if (target == AppPage.STUDY_MENU) studyItems = adaptiveStudySet(); page = target },
@@ -268,7 +273,7 @@ DrawerItem("⚙", uiText(lang, "Ayarlar"), page == AppPage.SETTINGS) { navigate(
                 when (page) {
                     AppPage.HOME -> ModernHomeScreen(lessons, saved, completedLessonIds, preferences, onLesson)
                     AppPage.MY_WORDS -> MyWordsScreen(lessons, saved, onRemove, onStudyItems, wordLearningState, onWordLearningState)
-                    AppPage.STUDY_MENU -> StudyMenuScreen(studyItems, onChooseStudy)
+                    AppPage.STUDY_MENU -> StudyMenuScreen(studyItems, preferences.appLanguage, onChooseStudy)
                     AppPage.PROFILE -> ProfileScreen(preferences, onPreferences, saved.size, completedLessonIds.size, stats)
                     AppPage.READ_STORIES -> ReadStoriesScreen(lessons, completedLessonIds, saved, onLesson)
                     AppPage.STATS -> StatsScreen(saved, completedLessonIds, stats)
