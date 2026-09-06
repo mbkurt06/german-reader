@@ -1280,17 +1280,46 @@ private fun ReviewRatingButton(label: String, modifier: Modifier, filled: Boolea
 @Composable
 private fun MeaningStudyScreen(items: List<Lexeme>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
     if (items.isEmpty()) { EmptyStudyScreen(onBack); return }
+    var roundItems by remember(items) { mutableStateOf(items) }
     var germanToTurkish by remember { mutableStateOf(true) }
-    var index by remember { mutableIntStateOf(0) }
-    var selectedAnswer by remember(index, germanToTurkish) { mutableStateOf<String?>(null) }
-    var correctCount by remember { mutableIntStateOf(0) }
-    val item = items[index % items.size]
-    val correct = if (germanToTurkish) item.meaning else wordDisplayTitle(item)
-    val options = remember(index, items, germanToTurkish) {
-        (items.filter { it.id != item.id }.shuffled().map { if (germanToTurkish) it.meaning else wordDisplayTitle(it) }.distinct().take(3) + correct).distinct().shuffled()
+    var index by remember(roundItems) { mutableIntStateOf(0) }
+    var selectedAnswer by remember(index, germanToTurkish, roundItems) { mutableStateOf<String?>(null) }
+    var correctCount by remember(roundItems) { mutableIntStateOf(0) }
+    var wrongIds by remember(roundItems) { mutableStateOf(setOf<String>()) }
+    var finished by remember(roundItems) { mutableStateOf(false) }
+
+    if (finished) {
+        StudyFinishedScreen(
+            title = uiText(appLanguage, "Kelime Anlamı"),
+            correct = correctCount,
+            total = roundItems.size,
+            wrongCount = wrongIds.size,
+            onRetryWrong = {
+                roundItems = roundItems.filter { it.id in wrongIds }
+                wrongIds = emptySet()
+                correctCount = 0
+                index = 0
+                finished = false
+            },
+            onRestart = {
+                roundItems = items
+                wrongIds = emptySet()
+                correctCount = 0
+                index = 0
+                finished = false
+            },
+            onBack = onBack
+        )
+        return
     }
 
-    StudyHeader(uiText(appLanguage, "Kelime Anlamı"), index, items.size, correctCount, onBack) {
+    val item = roundItems[index]
+    val correct = if (germanToTurkish) item.meaning else wordDisplayTitle(item)
+    val options = remember(index, roundItems, germanToTurkish) {
+        buildFourOptions(item, roundItems, germanToTurkish)
+    }
+
+    StudyHeader(uiText(appLanguage, "Kelime Anlamı"), index, roundItems.size, correctCount, onBack) {
         DirectionToggle(germanToTurkish) { germanToTurkish = !germanToTurkish }
         Spacer(Modifier.height(12.dp))
         Text(if (germanToTurkish) "Bu Almanca ifade ne anlama geliyor?" else "Bu anlamın Almancası hangisi?", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1299,12 +1328,12 @@ private fun MeaningStudyScreen(items: List<Lexeme>, appLanguage: String, onBack:
             Text(if (germanToTurkish) wordDisplayTitle(item) else item.meaning, Modifier.padding(20.dp), fontSize = 27.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(18.dp))
-        options.forEach { option ->
-            StudyAnswerButton(option, selectedAnswer, correct) {
+        options.forEachIndexed { optionIndex, option ->
+            StudyAnswerButton(option, optionIndex, selectedAnswer, correct) {
                 if (selectedAnswer == null) {
                     selectedAnswer = option
                     val ok = normalizeAnswer(option) == normalizeAnswer(correct)
-                    if (ok) correctCount++
+                    if (ok) correctCount++ else wrongIds = wrongIds + item.id
                     onAnswered(item, ok)
                 }
             }
@@ -1314,7 +1343,10 @@ private fun MeaningStudyScreen(items: List<Lexeme>, appLanguage: String, onBack:
             val ok = normalizeAnswer(it) == normalizeAnswer(correct)
             Text(if (ok) "Doğru ✓" else "Doğru cevap: $correct", color = if (ok) Success else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(12.dp))
-            Button(onClick = { index = (index + 1) % items.size }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text(uiText(appLanguage, "Sonraki")) }
+            Button(
+                onClick = { if (index == roundItems.lastIndex) finished = true else index++ },
+                modifier = Modifier.fillMaxWidth().height(52.dp)
+            ) { Text(if (index == roundItems.lastIndex) "Sonucu gör" else uiText(appLanguage, "Sonraki")) }
         }
     }
 }
@@ -1328,15 +1360,43 @@ private fun DirectionToggle(germanToTurkish: Boolean, onToggle: () -> Unit) {
 
 @Composable
 private fun FillBlankStudyScreen(items: List<Lexeme>, lessons: List<ReaderLesson>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
-    val cases = remember(items, lessons) { buildFillBlankCases(items, lessons) }
-    if (cases.isEmpty()) { EmptyStudyScreen(onBack, "Bu çalışma turundaki kelimeler için hikâye içinde boşluk doldurma cümlesi bulunamadı."); return }
-    var index by remember { mutableIntStateOf(0) }
-    var selectedAnswer by remember(index) { mutableStateOf<String?>(null) }
-    var correctCount by remember { mutableIntStateOf(0) }
-    val case = cases[index % cases.size]
+    val allCases = remember(items, lessons) { buildFillBlankCases(items, lessons).distinctBy { it.lexeme.id } }
+    if (allCases.isEmpty()) { EmptyStudyScreen(onBack, "Bu çalışma turundaki kelimeler için hikâye içinde boşluk doldurma cümlesi bulunamadı."); return }
+    var cases by remember(allCases) { mutableStateOf(allCases) }
+    var index by remember(cases) { mutableIntStateOf(0) }
+    var selectedAnswer by remember(index, cases) { mutableStateOf<String?>(null) }
+    var correctCount by remember(cases) { mutableIntStateOf(0) }
+    var wrongIds by remember(cases) { mutableStateOf(setOf<String>()) }
+    var finished by remember(cases) { mutableStateOf(false) }
+
+    if (finished) {
+        StudyFinishedScreen(
+            title = uiText(appLanguage, "Cümleyi Tamamla"),
+            correct = correctCount,
+            total = cases.size,
+            wrongCount = wrongIds.size,
+            onRetryWrong = {
+                cases = allCases.filter { it.lexeme.id in wrongIds }
+                wrongIds = emptySet()
+                correctCount = 0
+                index = 0
+                finished = false
+            },
+            onRestart = {
+                cases = allCases
+                wrongIds = emptySet()
+                correctCount = 0
+                index = 0
+                finished = false
+            },
+            onBack = onBack
+        )
+        return
+    }
+
+    val case = cases[index]
     val distractors = remember(index, cases, items) {
-        val pool = items.filter { it.id != case.lexeme.id }.map { wordDisplayTitle(it) }.distinct().shuffled().take(3)
-        (pool + case.answer).distinct().shuffled()
+        buildFourFillOptions(case, items)
     }
 
     StudyHeader(uiText(appLanguage, "Cümleyi Tamamla"), index, cases.size, correctCount, onBack) {
@@ -1346,12 +1406,12 @@ private fun FillBlankStudyScreen(items: List<Lexeme>, lessons: List<ReaderLesson
             Text(case.sentence, Modifier.padding(20.dp), fontSize = 21.sp, lineHeight = 30.sp)
         }
         Spacer(Modifier.height(18.dp))
-        distractors.forEach { option ->
-            StudyAnswerButton(option, selectedAnswer, case.answer) {
+        distractors.forEachIndexed { optionIndex, option ->
+            StudyAnswerButton(option, optionIndex, selectedAnswer, case.answer) {
                 if (selectedAnswer == null) {
                     selectedAnswer = option
                     val ok = normalizeAnswer(option) == normalizeAnswer(case.answer)
-                    if (ok) correctCount++
+                    if (ok) correctCount++ else wrongIds = wrongIds + case.lexeme.id
                     onAnswered(case.lexeme, ok)
                 }
             }
@@ -1361,7 +1421,10 @@ private fun FillBlankStudyScreen(items: List<Lexeme>, lessons: List<ReaderLesson
             val ok = normalizeAnswer(it) == normalizeAnswer(case.answer)
             Text(if (ok) "Doğru ✓" else "Doğru cevap: ${case.answer}", color = if (ok) Success else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(12.dp))
-            Button(onClick = { index = (index + 1) % cases.size }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text(uiText(appLanguage, "Sonraki")) }
+            Button(
+                onClick = { if (index == cases.lastIndex) finished = true else index++ },
+                modifier = Modifier.fillMaxWidth().height(52.dp)
+            ) { Text(if (index == cases.lastIndex) "Sonucu gör" else uiText(appLanguage, "Sonraki")) }
         }
     }
 }
@@ -1372,17 +1435,44 @@ private fun ListenStudyScreen(items: List<Lexeme>, appLanguage: String, onBack: 
     val context = LocalContext.current
     val speech = remember { GermanSpeechController(context) }
     DisposableEffect(Unit) { onDispose { speech.shutdown() } }
+    var roundItems by remember(items) { mutableStateOf(items) }
     var germanToTurkish by remember { mutableStateOf(true) }
-    var index by remember { mutableIntStateOf(0) }
-    var selectedAnswer by remember(index, germanToTurkish) { mutableStateOf<String?>(null) }
-    var correctCount by remember { mutableIntStateOf(0) }
-    val item = items[index % items.size]
-    val correct = if (germanToTurkish) item.meaning else wordDisplayTitle(item)
-    val options = remember(index, items, germanToTurkish) {
-        (items.filter { it.id != item.id }.shuffled().map { if (germanToTurkish) it.meaning else wordDisplayTitle(it) }.distinct().take(3) + correct).distinct().shuffled()
+    var index by remember(roundItems) { mutableIntStateOf(0) }
+    var selectedAnswer by remember(index, germanToTurkish, roundItems) { mutableStateOf<String?>(null) }
+    var correctCount by remember(roundItems) { mutableIntStateOf(0) }
+    var wrongIds by remember(roundItems) { mutableStateOf(setOf<String>()) }
+    var finished by remember(roundItems) { mutableStateOf(false) }
+
+    if (finished) {
+        StudyFinishedScreen(
+            title = uiText(appLanguage, "Dinle ve Bul"),
+            correct = correctCount,
+            total = roundItems.size,
+            wrongCount = wrongIds.size,
+            onRetryWrong = {
+                roundItems = roundItems.filter { it.id in wrongIds }
+                wrongIds = emptySet()
+                correctCount = 0
+                index = 0
+                finished = false
+            },
+            onRestart = {
+                roundItems = items
+                wrongIds = emptySet()
+                correctCount = 0
+                index = 0
+                finished = false
+            },
+            onBack = onBack
+        )
+        return
     }
 
-    StudyHeader(uiText(appLanguage, "Dinle ve Bul"), index, items.size, correctCount, onBack) {
+    val item = roundItems[index]
+    val correct = if (germanToTurkish) item.meaning else wordDisplayTitle(item)
+    val options = remember(index, roundItems, germanToTurkish) { buildFourOptions(item, roundItems, germanToTurkish) }
+
+    StudyHeader(uiText(appLanguage, "Dinle ve Bul"), index, roundItems.size, correctCount, onBack) {
         DirectionToggle(germanToTurkish) { germanToTurkish = !germanToTurkish }
         Spacer(Modifier.height(14.dp))
         Button(
@@ -1395,35 +1485,66 @@ private fun ListenStudyScreen(items: List<Lexeme>, appLanguage: String, onBack: 
             Text(item.meaning, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(16.dp))
-        options.forEach { option ->
-            StudyAnswerButton(option, selectedAnswer, correct) {
+        options.forEachIndexed { optionIndex, option ->
+            StudyAnswerButton(option, optionIndex, selectedAnswer, correct) {
                 if (selectedAnswer == null) {
                     selectedAnswer = option
                     val ok = normalizeAnswer(option) == normalizeAnswer(correct)
-                    if (ok) correctCount++
+                    if (ok) correctCount++ else wrongIds = wrongIds + item.id
                     onAnswered(item, ok)
                 }
             }
             Spacer(Modifier.height(9.dp))
         }
         selectedAnswer?.let {
-            Spacer(Modifier.height(4.dp))
-            Button(onClick = { index = (index + 1) % items.size }, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text(uiText(appLanguage, "Sonraki")) }
+            Button(
+                onClick = { if (index == roundItems.lastIndex) finished = true else index++ },
+                modifier = Modifier.fillMaxWidth().height(50.dp)
+            ) { Text(if (index == roundItems.lastIndex) "Sonucu gör" else uiText(appLanguage, "Sonraki")) }
         }
     }
 }
 
 @Composable
 private fun SentenceBuildStudyScreen(items: List<Lexeme>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
-    val cases = remember(items) { items.filter { !it.exampleSentence.isNullOrBlank() } }
-    if (cases.isEmpty()) { EmptyStudyScreen(onBack, "Cümle kurma için örnek cümle bulunamadı."); return }
-    var index by remember { mutableIntStateOf(0) }
-    var correctCount by remember { mutableIntStateOf(0) }
-    val item = cases[index % cases.size]
+    val allCases = remember(items) { items.filter { !it.exampleSentence.isNullOrBlank() }.distinctBy { it.id } }
+    if (allCases.isEmpty()) { EmptyStudyScreen(onBack, "Cümle kurma için örnek cümle bulunamadı."); return }
+    var cases by remember(allCases) { mutableStateOf(allCases) }
+    var index by remember(cases) { mutableIntStateOf(0) }
+    var correctCount by remember(cases) { mutableIntStateOf(0) }
+    var wrongIds by remember(cases) { mutableStateOf(setOf<String>()) }
+    var finished by remember(cases) { mutableStateOf(false) }
+
+    if (finished) {
+        StudyFinishedScreen(
+            title = uiText(appLanguage, "Cümle Kur"),
+            correct = correctCount,
+            total = cases.size,
+            wrongCount = wrongIds.size,
+            onRetryWrong = {
+                cases = allCases.filter { it.id in wrongIds }
+                wrongIds = emptySet()
+                correctCount = 0
+                index = 0
+                finished = false
+            },
+            onRestart = {
+                cases = allCases
+                wrongIds = emptySet()
+                correctCount = 0
+                index = 0
+                finished = false
+            },
+            onBack = onBack
+        )
+        return
+    }
+
+    val item = cases[index]
     val target = item.exampleSentence!!.trim()
-    val sourceWords = remember(index, target) { target.split(Regex("\\s+")).shuffled() }
-    var chosen by remember(index) { mutableStateOf<List<String>>(emptyList()) }
-    var checked by remember(index) { mutableStateOf<Boolean?>(null) }
+    val sourceWords = remember(index, target, cases) { target.split(Regex("\\s+")).shuffled() }
+    var chosen by remember(index, cases) { mutableStateOf<List<String>>(emptyList()) }
+    var checked by remember(index, cases) { mutableStateOf<Boolean?>(null) }
 
     StudyHeader(uiText(appLanguage, "Cümle Kur"), index, cases.size, correctCount, onBack) {
         Text(item.meaning, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1450,7 +1571,7 @@ private fun SentenceBuildStudyScreen(items: List<Lexeme>, appLanguage: String, o
                 onClick = {
                     val ok = normalizeAnswer(chosen.joinToString(" ")) == normalizeAnswer(target)
                     checked = ok
-                    if (ok) correctCount++
+                    if (ok) correctCount++ else wrongIds = wrongIds + item.id
                     onAnswered(item, ok)
                 },
                 enabled = chosen.isNotEmpty() && checked == null,
@@ -1461,7 +1582,10 @@ private fun SentenceBuildStudyScreen(items: List<Lexeme>, appLanguage: String, o
             Spacer(Modifier.height(10.dp))
             Text(if (ok) "Doğru ✓" else "Doğru cümle: $target", color = if (ok) Success else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
-            Button(onClick = { index = (index + 1) % cases.size }, modifier = Modifier.fillMaxWidth()) { Text(uiText(appLanguage, "Sonraki")) }
+            Button(
+                onClick = { if (index == cases.lastIndex) finished = true else index++ },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text(if (index == cases.lastIndex) "Sonucu gör" else uiText(appLanguage, "Sonraki")) }
         }
     }
 }
@@ -1469,16 +1593,45 @@ private fun SentenceBuildStudyScreen(items: List<Lexeme>, appLanguage: String, o
 @Composable
 private fun WritingStudyScreen(items: List<Lexeme>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
     if (items.isEmpty()) { EmptyStudyScreen(onBack); return }
+    var roundItems by remember(items) { mutableStateOf(items) }
     var germanToTurkish by remember { mutableStateOf(false) }
-    var index by remember { mutableIntStateOf(0) }
-    var answer by remember(index, germanToTurkish) { mutableStateOf("") }
-    var checked by remember(index, germanToTurkish) { mutableStateOf<Boolean?>(null) }
-    var correctCount by remember { mutableIntStateOf(0) }
-    val item = items[index % items.size]
+    var index by remember(roundItems) { mutableIntStateOf(0) }
+    var answer by remember(index, germanToTurkish, roundItems) { mutableStateOf("") }
+    var checked by remember(index, germanToTurkish, roundItems) { mutableStateOf<Boolean?>(null) }
+    var correctCount by remember(roundItems) { mutableIntStateOf(0) }
+    var wrongIds by remember(roundItems) { mutableStateOf(setOf<String>()) }
+    var finished by remember(roundItems) { mutableStateOf(false) }
+
+    if (finished) {
+        StudyFinishedScreen(
+            title = uiText(appLanguage, "Yazma"),
+            correct = correctCount,
+            total = roundItems.size,
+            wrongCount = wrongIds.size,
+            onRetryWrong = {
+                roundItems = roundItems.filter { it.id in wrongIds }
+                wrongIds = emptySet()
+                correctCount = 0
+                index = 0
+                finished = false
+            },
+            onRestart = {
+                roundItems = items
+                wrongIds = emptySet()
+                correctCount = 0
+                index = 0
+                finished = false
+            },
+            onBack = onBack
+        )
+        return
+    }
+
+    val item = roundItems[index]
     val prompt = if (germanToTurkish) wordDisplayTitle(item) else item.meaning
     val target = if (germanToTurkish) item.meaning else wordDisplayTitle(item)
 
-    StudyHeader(uiText(appLanguage, "Yazma"), index, items.size, correctCount, onBack) {
+    StudyHeader(uiText(appLanguage, "Yazma"), index, roundItems.size, correctCount, onBack) {
         DirectionToggle(germanToTurkish) { germanToTurkish = !germanToTurkish }
         Spacer(Modifier.height(14.dp))
         Text(prompt, fontSize = 25.sp, fontWeight = FontWeight.Bold)
@@ -1495,7 +1648,7 @@ private fun WritingStudyScreen(items: List<Lexeme>, appLanguage: String, onBack:
             onClick = {
                 val ok = normalizeAnswer(answer) == normalizeAnswer(target)
                 checked = ok
-                if (ok) correctCount++
+                if (ok) correctCount++ else wrongIds = wrongIds + item.id
                 onAnswered(item, ok)
             },
             enabled = answer.isNotBlank() && checked == null,
@@ -1505,7 +1658,10 @@ private fun WritingStudyScreen(items: List<Lexeme>, appLanguage: String, onBack:
             Spacer(Modifier.height(10.dp))
             Text(if (ok) "Doğru ✓" else "Doğru cevap: $target", color = if (ok) Success else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
-            Button(onClick = { index = (index + 1) % items.size }, modifier = Modifier.fillMaxWidth()) { Text(uiText(appLanguage, "Sonraki")) }
+            Button(
+                onClick = { if (index == roundItems.lastIndex) finished = true else index++ },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text(if (index == roundItems.lastIndex) "Sonucu gör" else uiText(appLanguage, "Sonraki")) }
         }
     }
 }
@@ -1513,17 +1669,44 @@ private fun WritingStudyScreen(items: List<Lexeme>, appLanguage: String, onBack:
 @Composable
 private fun QuickQuizScreen(items: List<Lexeme>, appLanguage: String, onBack: () -> Unit, onAnswered: (Lexeme, Boolean) -> Unit) {
     if (items.isEmpty()) { EmptyStudyScreen(onBack); return }
-    var index by remember { mutableIntStateOf(0) }
-    var correctCount by remember { mutableIntStateOf(0) }
-    var secondsLeft by remember(index) { mutableIntStateOf(10) }
-    var selected by remember(index) { mutableStateOf<String?>(null) }
-    val item = items[index % items.size]
-    val correct = item.meaning
-    val options = remember(index, items) {
-        (items.filter { it.id != item.id }.shuffled().map { it.meaning }.distinct().take(3) + correct).distinct().shuffled()
+    var roundItems by remember(items) { mutableStateOf(items) }
+    var index by remember(roundItems) { mutableIntStateOf(0) }
+    var correctCount by remember(roundItems) { mutableIntStateOf(0) }
+    var wrongIds by remember(roundItems) { mutableStateOf(setOf<String>()) }
+    var secondsLeft by remember(index, roundItems) { mutableIntStateOf(10) }
+    var selected by remember(index, roundItems) { mutableStateOf<String?>(null) }
+    var finished by remember(roundItems) { mutableStateOf(false) }
+
+    if (finished) {
+        StudyFinishedScreen(
+            title = uiText(appLanguage, "Hızlı Quiz"),
+            correct = correctCount,
+            total = roundItems.size,
+            wrongCount = wrongIds.size,
+            onRetryWrong = {
+                roundItems = roundItems.filter { it.id in wrongIds }
+                wrongIds = emptySet()
+                correctCount = 0
+                index = 0
+                finished = false
+            },
+            onRestart = {
+                roundItems = items
+                wrongIds = emptySet()
+                correctCount = 0
+                index = 0
+                finished = false
+            },
+            onBack = onBack
+        )
+        return
     }
 
-    LaunchedEffect(index, selected) {
+    val item = roundItems[index]
+    val correct = item.meaning
+    val options = remember(index, roundItems) { buildFourOptions(item, roundItems, true) }
+
+    LaunchedEffect(index, selected, roundItems) {
         if (selected != null) return@LaunchedEffect
         secondsLeft = 10
         while (secondsLeft > 0 && selected == null) {
@@ -1532,6 +1715,7 @@ private fun QuickQuizScreen(items: List<Lexeme>, appLanguage: String, onBack: ()
         }
         if (secondsLeft == 0 && selected == null) {
             selected = "__timeout__"
+            wrongIds = wrongIds + item.id
             onAnswered(item, false)
         }
     }
@@ -1546,13 +1730,13 @@ private fun QuickQuizScreen(items: List<Lexeme>, appLanguage: String, onBack: ()
         }
         LinearProgressIndicator(progress = { secondsLeft / 10f }, modifier = Modifier.fillMaxWidth())
         Column(Modifier.weight(1f).fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text("Soru ${index + 1} / ${items.size}", color = Color.White.copy(alpha = .75f))
+            Text("Soru ${index + 1} / ${roundItems.size}", color = Color.White.copy(alpha = .75f))
             Spacer(Modifier.height(14.dp))
             Text(wordDisplayTitle(item), color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             Spacer(Modifier.height(8.dp))
             Text("Doğru: $correctCount", color = Color.White.copy(alpha = .75f))
         }
-        val quizColors = listOf(Color(0xFFE94B4B), Color(0xFF3478D4), Color(0xFFE5AE2C), Color(0xFF2E9B62))
+        val quizColors = studyOptionColors()
         Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             options.chunked(2).forEachIndexed { rowIndex, row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1563,7 +1747,7 @@ private fun QuickQuizScreen(items: List<Lexeme>, appLanguage: String, onBack: ()
                                 if (selected == null) {
                                     selected = option
                                     val ok = normalizeAnswer(option) == normalizeAnswer(correct)
-                                    if (ok) correctCount++
+                                    if (ok) correctCount++ else wrongIds = wrongIds + item.id
                                     onAnswered(item, ok)
                                 }
                             },
@@ -1575,7 +1759,6 @@ private fun QuickQuizScreen(items: List<Lexeme>, appLanguage: String, onBack: ()
                             Text(option, fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                         }
                     }
-                    if (row.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
             if (selected != null) {
@@ -1588,29 +1771,100 @@ private fun QuickQuizScreen(items: List<Lexeme>, appLanguage: String, onBack: ()
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
                 Button(
-                    onClick = { index = (index + 1) % items.size },
+                    onClick = { if (index == roundItems.lastIndex) finished = true else index++ },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Dark)
-                ) { Text(uiText(appLanguage, "Sonraki"), fontWeight = FontWeight.Bold) }
+                ) { Text(if (index == roundItems.lastIndex) "Sonucu gör" else uiText(appLanguage, "Sonraki"), fontWeight = FontWeight.Bold) }
             }
         }
     }
 }
 
-@Composable private fun StudyAnswerButton(option: String, selected: String?, correct: String, onClick: () -> Unit) {
+@Composable
+private fun StudyFinishedScreen(
+    title: String,
+    correct: Int,
+    total: Int,
+    wrongCount: Int,
+    onRetryWrong: () -> Unit,
+    onRestart: () -> Unit,
+    onBack: () -> Unit
+) {
+    Column(
+        Modifier.fillMaxSize().navigationBarsPadding().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("✓", color = Success, fontSize = 58.sp)
+        Text(title, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Text("$correct / $total doğru", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(22.dp))
+        if (wrongCount > 0) {
+            Button(onClick = onRetryWrong, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp)) {
+                Text("Yanlışları çöz ($wrongCount)", fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(10.dp))
+        }
+        OutlinedButton(onClick = onRestart, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp)) {
+            Text("Baştan çöz")
+        }
+        Spacer(Modifier.height(10.dp))
+        TextButton(onClick = onBack) { Text("Çalışma seçeneklerine dön") }
+    }
+}
+
+private fun buildFourOptions(item: Lexeme, currentItems: List<Lexeme>, germanToTurkish: Boolean): List<String> {
+    val correct = if (germanToTurkish) item.meaning else wordDisplayTitle(item)
+    val pool = (currentItems + SampleLessons.all.flatMap { it.quizItems })
+        .distinctBy { "${wordDisplayTitle(it).lowercase()}|${it.meaning.lowercase()}" }
+        .filter { it.id != item.id }
+        .map { if (germanToTurkish) it.meaning else wordDisplayTitle(it) }
+        .filter { normalizeAnswer(it) != normalizeAnswer(correct) }
+        .distinctBy { normalizeAnswer(it) }
+        .shuffled()
+    return (pool.take(3) + correct).distinctBy { normalizeAnswer(it) }.shuffled()
+}
+
+private fun buildFourFillOptions(case: FillBlankCase, currentItems: List<Lexeme>): List<String> {
+    val pool = (currentItems + SampleLessons.all.flatMap { it.quizItems })
+        .map { wordDisplayTitle(it) }
+        .filter { normalizeAnswer(it) != normalizeAnswer(case.answer) }
+        .distinctBy { normalizeAnswer(it) }
+        .shuffled()
+    return (pool.take(3) + case.answer).distinctBy { normalizeAnswer(it) }.shuffled()
+}
+
+private fun studyOptionColors(): List<Color> = listOf(
+    Color(0xFFE94B4B),
+    Color(0xFF3478D4),
+    Color(0xFFE5AE2C),
+    Color(0xFF2E9B62)
+)
+
+@Composable
+private fun StudyAnswerButton(option: String, optionIndex: Int, selected: String?, correct: String, onClick: () -> Unit) {
+    val baseColor = studyOptionColors()[optionIndex.coerceIn(0, 3)]
     val isSelected = selected == option
     val isCorrect = selected != null && normalizeAnswer(option) == normalizeAnswer(correct)
-    val container = when { isCorrect -> Success.copy(alpha = .14f); isSelected -> MaterialTheme.colorScheme.error.copy(alpha = .12f); else -> MaterialTheme.colorScheme.surface }
-    val borderColor = when { isCorrect -> Success; isSelected -> MaterialTheme.colorScheme.error; else -> MaterialTheme.colorScheme.outlineVariant }
-    OutlinedButton(
+    val shownColor = when {
+        isCorrect -> Success
+        isSelected -> MaterialTheme.colorScheme.error
+        else -> baseColor
+    }
+    Button(
         onClick = onClick,
         enabled = selected == null,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 62.dp),
         shape = RoundedCornerShape(17.dp),
-        colors = ButtonDefaults.outlinedButtonColors(containerColor = container, contentColor = MaterialTheme.colorScheme.onSurface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+        colors = ButtonDefaults.buttonColors(
+            containerColor = shownColor,
+            disabledContainerColor = shownColor.copy(alpha = if (selected == null) 1f else .78f),
+            contentColor = Color.White,
+            disabledContentColor = Color.White
+        )
     ) {
-        Text(option, Modifier.fillMaxWidth(), fontSize = 17.sp, fontWeight = if (isSelected || isCorrect) FontWeight.SemiBold else FontWeight.Normal)
+        Text(option, Modifier.fillMaxWidth(), fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
