@@ -207,14 +207,15 @@ class UserPreferencesStore(context: Context) {
 
     fun selectDueReviewItems(candidates: List<Lexeme>, limit: Int = 20): List<Lexeme> {
         val now = System.currentTimeMillis()
-        return candidates.distinctBy { it.id }
+        return candidates
+            .distinctBy { "${(it.dictionaryForm ?: it.base).trim().lowercase()}|${it.meaning.trim().lowercase()}" }
             .filter { wordProgress(it.id).nextReviewAt <= now }
             .sortedWith(compareBy<Lexeme> { wordProgress(it.id).nextReviewAt }.thenBy { it.id })
             .take(limit.coerceAtLeast(1))
     }
 
     fun selectStudyItems(candidates: List<Lexeme>, limit: Int = 10): List<Lexeme> {
-        val unique = candidates.distinctBy { it.id }
+        val unique = candidates.distinctBy { "${(it.dictionaryForm ?: it.base).trim().lowercase()}|${it.meaning.trim().lowercase()}" }
         val now = System.currentTimeMillis()
         return unique
             .map { item ->
