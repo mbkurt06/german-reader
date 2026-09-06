@@ -272,7 +272,7 @@ DrawerItem("⚙", uiText(lang, "Ayarlar"), page == AppPage.SETTINGS) { navigate(
             Box(Modifier.fillMaxSize().padding(padding)) {
                 when (page) {
                     AppPage.HOME -> ModernHomeScreen(lessons, saved, completedLessonIds, preferences, onLesson)
-                    AppPage.MY_WORDS -> MyWordsScreen(lessons, saved, onRemove, onStudyItems, wordLearningState, onWordLearningState)
+                    AppPage.MY_WORDS -> MyWordsScreen(lessons, saved, onRemove, onStudyItems, preferences.appLanguage, wordLearningState, onWordLearningState)
                     AppPage.STUDY_MENU -> StudyMenuScreen(studyItems, preferences.appLanguage, onChooseStudy)
                     AppPage.PROFILE -> ProfileScreen(preferences, onPreferences, saved.size, completedLessonIds.size, stats)
                     AppPage.READ_STORIES -> ReadStoriesScreen(lessons, completedLessonIds, saved, onLesson)
@@ -1078,6 +1078,7 @@ private fun MyWordsScreen(
     saved: List<Lexeme>,
     onRemove: (Lexeme) -> Unit,
     onStudy: (List<Lexeme>) -> Unit,
+    appLanguage: String,
     wordLearningState: (String) -> String,
     onWordLearningState: (String, String) -> Unit
 ) {
@@ -1104,11 +1105,11 @@ private fun MyWordsScreen(
         MultiFilterDropdown("Kelime türü", typeFilters, wordTypes.map { it to it }) { typeFilters = it }
         Text("Öğrenme durumu", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(null to "Tümü", "review" to "Tekrar", "hard" to "Zor", "learned" to "Öğrendim").forEach { (state, label) ->
+            listOf(null to "Tümü", "again" to "Tekrar", "hard" to "Zor", "good" to "İyi", "easy" to "Kolay").forEach { (state, label) ->
                 FilterChip(
                     selected = learningFilter == state,
                     onClick = { learningFilter = state },
-                    label = { Text(label, fontSize = 11.sp) }
+                    label = { Text(if (state == null) label else uiText(appLanguage, label), fontSize = 11.sp) }
                 )
             }
         }
@@ -1131,6 +1132,7 @@ private fun MyWordsScreen(
                 onRemove = { onRemove(item); selectedIds = selectedIds - item.id },
                 lessonTitle = lessonByLexeme[item.id]?.title,
                 learningState = currentState,
+                appLanguage = appLanguage,
                 onLearningState = { state ->
                     onWordLearningState(item.id, state)
                     learningStateRevision++
@@ -1952,6 +1954,7 @@ private fun SelectableWordCard(
     onRemove: () -> Unit,
     lessonTitle: String?,
     learningState: String,
+    appLanguage: String,
     onLearningState: (String) -> Unit
 ) {
     ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = if (selected) Turquoise.copy(alpha = .12f) else MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth().clickable(onClick = onSelect), shape = RoundedCornerShape(18.dp)) {
@@ -1964,11 +1967,11 @@ private fun SelectableWordCard(
                 item.exampleSentence?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    listOf("review" to "Tekrar", "hard" to "Zor", "learned" to "Öğrendim").forEach { (state, label) ->
+                    listOf("again" to "Tekrar", "hard" to "Zor", "good" to "İyi", "easy" to "Kolay").forEach { (state, label) ->
                         FilterChip(
                             selected = learningState == state,
                             onClick = { onLearningState(state) },
-                            label = { Text(label, fontSize = 10.sp) }
+                            label = { Text(uiText(appLanguage, label), fontSize = 10.sp) }
                         )
                     }
                 }
