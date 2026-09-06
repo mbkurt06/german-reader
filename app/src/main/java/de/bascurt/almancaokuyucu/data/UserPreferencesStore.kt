@@ -36,7 +36,8 @@ data class WordStudyProgress(
     val streak: Int = 0,
     val lastSeen: Long = 0L,
     val reviewIntervalDays: Int = 0,
-    val nextReviewAt: Long = 0L
+    val nextReviewAt: Long = 0L,
+    val learningState: String = "review"
 )
 
 enum class ReviewRating { AGAIN, HARD, GOOD }
@@ -130,7 +131,8 @@ class UserPreferencesStore(context: Context) {
         streak = prefs.getInt("word_${id}_streak", 0),
         lastSeen = prefs.getLong("word_${id}_last_seen", 0L),
         reviewIntervalDays = prefs.getInt("word_${id}_review_interval_days", 0),
-        nextReviewAt = prefs.getLong("word_${id}_next_review_at", 0L)
+        nextReviewAt = prefs.getLong("word_${id}_next_review_at", 0L),
+        learningState = prefs.getString("word_${id}_learning_state", "review") ?: "review"
     )
 
     fun recordWordAnswer(id: String, correct: Boolean) {
@@ -149,17 +151,49 @@ class UserPreferencesStore(context: Context) {
         val nextInterval = when (rating) {
             ReviewRating.AGAIN -> 0
             ReviewRating.HARD -> 1
-            ReviewRating.GOOD -> if (current.reviewIntervalDays <= 0) 1 else (current.reviewIntervalDays * 2).coerceAtMost(120)
+            ReviewRating.GOOD -> if (current.learningState != "learned" || current.reviewIntervalDays < 7) 7 else (current.reviewIntervalDays * 2).coerceAtMost(120)
         }
         val delay = when (rating) {
             ReviewRating.AGAIN -> 10 * 60 * 1000L
             else -> nextInterval * 24 * 60 * 60 * 1000L
+        }
+        val learningState = when (rating) {
+            ReviewRating.AGAIN -> "review"
+            ReviewRating.HARD -> "hard"
+            ReviewRating.GOOD -> "learned"
         }
         prefs.edit()
             .putInt("word_${id}_review_interval_days", nextInterval)
             .putLong("word_${id}_next_review_at", now + delay)
             .putLong("word_${id}_last_seen", now)
             .putInt("word_${id}_streak", if (rating == ReviewRating.AGAIN) 0 else current.streak + 1)
+            .putString("word_${id}_learning_state", learningState)
+            .apply()
+    }
+
+    fun setLearningState(id: String, state: String) {
+        val normalized = when (state) {
+            "hard" -> "hard"
+            "learned" -> "learned"
+            else -> "review"
+        }
+        val current = wordProgress(id)
+        val now = System.currentTimeMillis()
+        val intervalDays = when (normalized) {
+            "hard" -> 1
+            "learned" -> current.reviewIntervalDays.coerceAtLeast(7)
+            else -> 0
+        }
+        val nextReviewAt = when (normalized) {
+            "hard" -> now + 24 * 60 * 60 * 1000L
+            "learned" -> now + intervalDays * 24 * 60 * 60 * 1000L
+            else -> now + 10 * 60 * 1000L
+        }
+        prefs.edit()
+            .putString("word_${id}_learning_state", normalized)
+            .putInt("word_${id}_review_interval_days", intervalDays)
+            .putLong("word_${id}_next_review_at", nextReviewAt)
+            .putLong("word_${id}_last_seen", now)
             .apply()
     }
 
@@ -182,8 +216,14 @@ class UserPreferencesStore(context: Context) {
                 val errorBonus = progress.wrong * 40.0
                 val accuracyPenalty = if (attempts == 0) 0.0 else (progress.correct.toDouble() / attempts) * 20.0
                 val streakPenalty = progress.streak * 12.0
+                val stateBonus = when (progress.learningState) {
+                    "review" -> 350.0
+                    "hard" -> 180.0
+                    "learned" -> -220.0
+                    else -> 0.0
+                }
                 val ageHours = if (progress.lastSeen == 0L) 72.0 else ((now - progress.lastSeen).coerceAtLeast(0L) / 3_600_000.0).coerceAtMost(72.0)
-                item to (unseenBonus + errorBonus + ageHours - accuracyPenalty - streakPenalty)
+                item to (unseenBonus + errorBonus + stateBonus + ageHours - accuracyPenalty - streakPenalty)
             }
             .sortedByDescending { it.second }
             .take(limit.coerceAtLeast(1))
