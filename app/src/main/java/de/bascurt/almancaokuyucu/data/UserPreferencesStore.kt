@@ -132,7 +132,11 @@ class UserPreferencesStore(context: Context) {
         lastSeen = prefs.getLong("word_${id}_last_seen", 0L),
         reviewIntervalDays = prefs.getInt("word_${id}_review_interval_days", 0),
         nextReviewAt = prefs.getLong("word_${id}_next_review_at", 0L),
-        learningState = prefs.getString("word_${id}_learning_state", "again") ?: "again"
+        learningState = when (prefs.getString("word_${id}_learning_state", "again") ?: "again") {
+            "review" -> "again"
+            "learned" -> "easy"
+            else -> prefs.getString("word_${id}_learning_state", "again") ?: "again"
+        }
     )
 
     fun recordWordAnswer(id: String, correct: Boolean) {
