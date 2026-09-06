@@ -1084,11 +1084,13 @@ private fun MyWordsScreen(
     val lessonByLexeme = remember(lessons) { lessons.flatMap { lesson -> lesson.lexemes.map { it.id to lesson } }.toMap() }
     val availableLessons = lessons.filter { lesson -> saved.any { lesson.lexemes.any { lx -> lx.id == it.id } } }
     val wordTypes = listOf("Fiil", "İsim", "Sıfat", "Zarf", "Edat", "Bağlaç", "Zamir", "Artikel", "Belirleyici", "Parçacık", "Özel isim", "Diğer")
-    val filtered = saved.filter { item ->
-        val state = wordLearningState(item.id)
-        (lessonFilters.isEmpty() || lessonByLexeme[item.id]?.id in lessonFilters) &&
-            (typeFilters.isEmpty() || item.wordClass in typeFilters) &&
-            (learningFilter == null || state == learningFilter)
+    val filtered = remember(saved, lessonFilters, typeFilters, learningFilter, learningStateRevision) {
+        saved.filter { item ->
+            val state = wordLearningState(item.id)
+            (lessonFilters.isEmpty() || lessonByLexeme[item.id]?.id in lessonFilters) &&
+                (typeFilters.isEmpty() || item.wordClass in typeFilters) &&
+                (learningFilter == null || state == learningFilter)
+        }
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
@@ -1130,7 +1132,6 @@ private fun MyWordsScreen(
                 }
             )
         }
-        if (learningStateRevision < 0) Text("")
         if (filtered.isEmpty()) Text("Bu filtrelerde kayıtlı kelime yok.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp))
         Spacer(Modifier.height(30.dp))
     }
