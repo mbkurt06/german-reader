@@ -1725,21 +1725,21 @@ private fun QuickQuizScreen(items: List<Lexeme>, appLanguage: String, translatio
         }
     }
 
-    Column(Modifier.fillMaxSize().background(Dark).statusBarsPadding().navigationBarsPadding()) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().navigationBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("‹", color = Color.White, fontSize = 32.sp, modifier = Modifier.clickable(onClick = onBack).padding(8.dp))
-            Text(uiText(appLanguage, "Hızlı Quiz"), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            Surface(shape = CircleShape, color = Color.White.copy(alpha = .16f), modifier = Modifier.size(54.dp)) {
-                Box(contentAlignment = Alignment.Center) { Text("$secondsLeft", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+            Text("‹", color = MaterialTheme.colorScheme.onBackground, fontSize = 32.sp, modifier = Modifier.clickable(onClick = onBack).padding(8.dp))
+            Text(uiText(appLanguage, "Hızlı Quiz"), color = MaterialTheme.colorScheme.onBackground, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(54.dp)) {
+                Box(contentAlignment = Alignment.Center) { Text("$secondsLeft", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
             }
         }
         LinearProgressIndicator(progress = { secondsLeft / 10f }, modifier = Modifier.fillMaxWidth())
         Column(Modifier.weight(1f).fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text("Soru ${index + 1} / ${roundItems.size}", color = Color.White.copy(alpha = .75f))
+            Text("Soru ${index + 1} / ${roundItems.size}", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
-            Text(wordDisplayTitle(item), color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Text(wordDisplayTitle(item), color = MaterialTheme.colorScheme.onBackground, fontSize = 30.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             Spacer(Modifier.height(8.dp))
-            Text("Doğru: $correctCount", color = Color.White.copy(alpha = .75f))
+            Text("Doğru: $correctCount", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         val quizColors = studyOptionColors()
         Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1759,7 +1759,16 @@ private fun QuickQuizScreen(items: List<Lexeme>, appLanguage: String, translatio
                             enabled = selected == null,
                             modifier = Modifier.weight(1f).height(112.dp),
                             shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = quizColors[colorIndex], disabledContainerColor = quizColors[colorIndex].copy(alpha = .70f), contentColor = Color.White, disabledContentColor = Color.White)
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (selected != null && normalizeAnswer(option) == normalizeAnswer(correct)) Success else quizColors[colorIndex],
+                                disabledContainerColor = when {
+                                    selected != null && normalizeAnswer(option) == normalizeAnswer(correct) -> Success
+                                    selected == option -> MaterialTheme.colorScheme.error
+                                    else -> quizColors[colorIndex].copy(alpha = .70f)
+                                },
+                                contentColor = Color.White,
+                                disabledContentColor = Color.White
+                            )
                         ) {
                             Text(option, fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                         }
@@ -1770,7 +1779,7 @@ private fun QuickQuizScreen(items: List<Lexeme>, appLanguage: String, translatio
                 val ok = selected != "__timeout__" && normalizeAnswer(selected!!) == normalizeAnswer(correct)
                 Text(
                     if (selected == "__timeout__") "Süre doldu • Doğru cevap: $correct" else if (ok) "Doğru ✓" else "Doğru cevap: $correct",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.fillMaxWidth().padding(6.dp),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -1778,7 +1787,7 @@ private fun QuickQuizScreen(items: List<Lexeme>, appLanguage: String, translatio
                 Button(
                     onClick = { if (index == roundItems.lastIndex) finished = true else index++ },
                     modifier = Modifier.fillMaxWidth().height(46.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Dark)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
                 ) { Text(if (index == roundItems.lastIndex) "Sonucu gör" else uiText(appLanguage, "Sonraki"), fontWeight = FontWeight.Bold) }
             }
         }
@@ -1796,7 +1805,7 @@ private fun StudyFinishedScreen(
     onBack: () -> Unit
 ) {
     Column(
-        Modifier.fillMaxSize().navigationBarsPadding().padding(24.dp),
+        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).navigationBarsPadding().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -1844,7 +1853,7 @@ private fun studyOptionColors(): List<Color> = listOf(
     Color(0xFFE94B4B),
     Color(0xFF3478D4),
     Color(0xFFE5AE2C),
-    Color(0xFF2E9B62)
+    Color(0xFF8A5AC2)
 )
 
 @Composable
